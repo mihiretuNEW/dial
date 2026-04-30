@@ -1,0 +1,6 @@
+{
+  "name": "Dialer Pro",
+  "description": "A high-fidelity phone dialer application with USSD code support and realistic interface.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
