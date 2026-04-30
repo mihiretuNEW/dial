@@ -103,7 +103,7 @@ export default function App() {
     if (!number) return;
     
     setUssdRunning(number);
-    setIsKeypadOpen(false);
+    // Keep keypad open as per user request
     setDialedNumber('');
     
     if (number === '*889#') {
@@ -397,20 +397,20 @@ export default function App() {
             transition={{ duration: 0.1 }}
             className="fixed inset-0 z-[100] flex items-center justify-center bg-transparent pointer-events-none"
           >
-            <div className="bg-[#1C1C1E] text-zinc-100 px-8 py-8 rounded-[2.5rem] flex items-center gap-6 shadow-2xl border border-zinc-800/50 w-[85%] max-w-xs">
-              <div className="flex gap-2">
+            <div className="bg-[#1C1C1E] text-zinc-100 px-6 py-7 rounded-[2rem] flex items-center gap-5 shadow-2xl border border-zinc-800/50 w-[82%] max-w-[280px]">
+              <div className="flex gap-1.5">
                 <motion.div 
                   animate={{ opacity: [0.3, 1, 0.3] }}
-                  transition={{ repeat: Infinity, duration: 0.8 }}
-                  className="w-2.5 h-2.5 bg-zinc-400 rounded-full" 
+                  transition={{ repeat: Infinity, duration: 1 }}
+                  className="w-2 h-2 bg-zinc-300 rounded-full" 
                 />
                 <motion.div 
                   animate={{ opacity: [0.3, 1, 0.3] }}
-                  transition={{ repeat: Infinity, duration: 0.8, delay: 0.4 }}
-                  className="w-2.5 h-2.5 bg-zinc-400 rounded-full" 
+                  transition={{ repeat: Infinity, duration: 1, delay: 0.5 }}
+                  className="w-2 h-2 bg-zinc-300 rounded-full" 
                 />
               </div>
-              <span className="text-xl font-normal text-zinc-300">USSD code running...</span>
+              <span className="text-[17px] font-normal text-zinc-300 tracking-tight">USSD code running...</span>
             </div>
           </motion.div>
         ) : ussdResult ? (
@@ -558,12 +558,12 @@ export default function App() {
                 {/* --- Step: Success Message --- */}
                 {ussdStep === 'CBE_SUCCESS' && (
                   <>
-                    <p className="text-zinc-100 text-[18px] font-normal leading-[1.6] mb-8">
+                    <p className="text-zinc-100 text-[16px] font-normal leading-[1.5] mb-6 tracking-wide">
                       Completed ETB{((ussdSessionData.amount || 0) + 0.61).toFixed(2)} transfer From {ussdSessionData.senderName} to {ussdSessionData.receiverName}-{ussdSessionData.receiverAcc.slice(-4)}. To {ussdSessionData.reason} on {getTodayDate()} {generateTxId()} Service Charge{"\n"}
                       #:Next
                     </p>
                     <div className="relative mb-4">
-                      <input type="text" autoFocus className="w-full bg-transparent border-none outline-none text-xl font-normal py-1 text-white" />
+                      <input type="text" autoFocus className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-white" />
                       <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-blue-500" />
                     </div>
                   </>
