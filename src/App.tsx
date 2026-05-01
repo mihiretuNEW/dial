@@ -18,7 +18,8 @@ import {
   User, 
   Dot,
   Check,
-  X
+  X,
+  Bell
 } from 'lucide-react';
 
 // --- Types ---
@@ -72,6 +73,17 @@ export default function App() {
   const [ussdSessionData, setUssdSessionData] = useState<any>({});
   const [ussdRunning, setUssdRunning] = useState<string | null>(null);
   const [ussdResult, setUssdResult] = useState<string | null>(null);
+  const [showNotification, setShowNotification] = useState(false);
+
+  // Notification content helper
+  const getNotificationText = () => {
+    const amount = Number(ussdSessionData.amount) || 0;
+    const sender = ussdSessionData.senderName || 'Valued Customer';
+    const receiver = ussdSessionData.receiverName || 'Recipient';
+    const receiverAcc = ussdSessionData.receiverAcc || '****';
+    
+    return `Dear ${sender} You have successfully transferred ETB ${amount.toFixed(2)} from account 1********0037 to account 1********${receiverAcc.slice(-4)} (${receiver}). Service charge of ETB 0.50 and VAT(15%) of ETB0.08 and Disaster Recovery(5%) of 0.03 with total of ETB${(amount + 0.61).toFixed(2)} .Your current balance is ETB974.78. Thanks for Banking with CBE. https://Mbreciept.cbe.com.et/...`;
+  };
 
   const dialerRef = useRef<HTMLDivElement>(null);
 
@@ -171,6 +183,7 @@ export default function App() {
       else if (ussdStep === 'CBE_FINAL_PIN') {
         if (input === '1997') {
           setUssdStep('CBE_SUCCESS');
+          setTimeout(() => setShowNotification(true), 2000);
         } else {
           alert('Invalid PIN.');
         }
@@ -191,6 +204,57 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-black text-white relative select-none overflow-hidden">
+      {/* --- USSD Notification --- */}
+      <AnimatePresence>
+        {showNotification && (
+          <motion.div
+            initial={{ y: -120, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ x: '110%', opacity: 0, transition: { duration: 0.2 } }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 300 }}
+            dragDirectionLock
+            onDragEnd={(_, info) => {
+              if (Math.abs(info.offset.x) > 100) setShowNotification(false);
+            }}
+            className="fixed top-3 left-4 right-4 z-[200] bg-[#242426]/90 backdrop-blur-xl rounded-[1.8rem] shadow-2xl p-4 cursor-grab active:cursor-grabbing border border-white/5 safe-area-top"
+          >
+            <div className="flex gap-4">
+              {/* User Avatar with Message Icon */}
+              <div className="relative flex-shrink-0">
+                <div className="w-[50px] h-[50px] rounded-full bg-[#3A3A3C] flex items-center justify-center overflow-hidden">
+                  <User className="text-[#8E8E93]" size={30} />
+                </div>
+                <div className="absolute -bottom-0.5 -right-0.5 bg-[#2C2C2E] border-[1.5px] border-[#242426] rounded-full p-1 shadow-sm">
+                  <div className="bg-[#0B84FF] rounded-full p-0.5">
+                    <MessageSquare size={10} className="text-white fill-current" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-0.5">
+                  <div className="flex items-center gap-1.5 pt-0.5">
+                    <span className="text-[#FFFFFF] font-semibold text-[15.5px] tracking-wide">CBE</span>
+                    <span className="text-[#98989E] text-[13.5px]">Messages</span>
+                    <span className="text-[#98989E] text-[13.5px]">now</span>
+                    <Bell size={12} className="text-[#98989E] ml-0.5" />
+                  </div>
+                </div>
+                <p className="text-[#E5E5EA] text-[14.5px] leading-[1.45] line-clamp-3 font-normal">
+                  {getNotificationText()}
+                </p>
+                <div className="flex gap-7 mt-3.5 mb-1">
+                  <button className="text-[#0B84FF] text-[15px] font-medium active:opacity-40 transition-opacity">Reply</button>
+                  <button className="text-[#0B84FF] text-[15px] font-medium active:opacity-40 transition-opacity">Mark as read</button>
+                </div>
+              </div>
+            </div>
+            {/* Grab handle/indicator */}
+            <div className="w-10 h-1.5 bg-[#48484A]/60 rounded-full mx-auto mt-2.5 mb-0.5" />
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* --- Top Header --- */}
       <div className="pt-10 px-6 pb-2">
         <div className="flex justify-between items-center mb-1">
