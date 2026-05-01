@@ -74,6 +74,7 @@ export default function App() {
   const [ussdRunning, setUssdRunning] = useState<string | null>(null);
   const [ussdResult, setUssdResult] = useState<string | null>(null);
   const [showNotification, setShowNotification] = useState(false);
+  const [editingCall, setEditingCall] = useState<RecentCall | null>(null);
 
   // Notification content helper
   const getNotificationText = () => {
@@ -83,6 +84,11 @@ export default function App() {
     const receiverAcc = ussdSessionData.receiverAcc || '****';
     
     return `Dear ${sender} You have successfully transferred ETB ${amount.toFixed(2)} from account 1********0037 to account 1********${receiverAcc.slice(-4)} (${receiver}). Service charge of ETB 0.50 and VAT(15%) of ETB0.08 and Disaster Recovery(5%) of 0.03 with total of ETB${(amount + 0.61).toFixed(2)} .Your current balance is ETB974.78. Thanks for Banking with CBE. https://Mbreciept.cbe.com.et/...`;
+  };
+
+  const handleUpdateCall = (updated: RecentCall) => {
+    setRecentCalls(prev => prev.map(c => c.id === updated.id ? updated : c));
+    setEditingCall(null);
   };
 
   const dialerRef = useRef<HTMLDivElement>(null);
@@ -293,8 +299,8 @@ export default function App() {
           .filter(call => activeTab === 'all' || call.type === 'missed')
           .filter(call => !dialedNumber || call.number.includes(dialedNumber) || call.name.toLowerCase().includes(dialedNumber.toLowerCase()))
           .map((call) => (
-          <div key={call.id} className="flex items-center justify-between py-4 group" id={`call-${call.id}`}>
-            <div className="flex items-center gap-4">
+            <div key={call.id} className="flex items-center justify-between py-4 group cursor-pointer active:bg-zinc-900/50 -mx-6 px-6 transition-colors" id={`call-${call.id}`} onClick={() => setEditingCall(call)}>
+              <div className="flex items-center gap-4">
               <div className={`transition-colors ${call.type === 'missed' ? 'text-red-500' : 'text-zinc-500'}`}>
                 {call.type === 'missed' ? (
                   <Phone className="w-5 h-5 fill-current rotate-[135deg]" />
@@ -667,6 +673,108 @@ export default function App() {
             </div>
           </motion.div>
         ) : null}
+      </AnimatePresence>
+
+      {/* --- Edit Call Modal --- */}
+      <AnimatePresence>
+        {editingCall && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-6 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-[#1C1C1E] w-full max-w-[320px] rounded-[2rem] overflow-hidden shadow-2xl border border-zinc-800"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-white">Edit Call Info</h2>
+                  <button onClick={() => setEditingCall(null)} className="text-zinc-500 active:text-white">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-zinc-500 uppercase tracking-wider mb-1 block px-1">Name</label>
+                    <input 
+                      type="text" 
+                      value={editingCall.name}
+                      onChange={(e) => setEditingCall({ ...editingCall, name: e.target.value })}
+                      className="w-full bg-[#2C2C2E] border-none outline-none text-[17px] py-2 px-3 rounded-xl text-white focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-500 uppercase tracking-wider mb-1 block px-1">Number</label>
+                    <input 
+                      type="text" 
+                      value={editingCall.number}
+                      onChange={(e) => setEditingCall({ ...editingCall, number: e.target.value })}
+                      className="w-full bg-[#2C2C2E] border-none outline-none text-[17px] py-2 px-3 rounded-xl text-white focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-zinc-500 uppercase tracking-wider mb-1 block px-1">Time</label>
+                      <input 
+                        type="text" 
+                        value={editingCall.time}
+                        onChange={(e) => setEditingCall({ ...editingCall, time: e.target.value })}
+                        className="w-full bg-[#2C2C2E] border-none outline-none text-[17px] py-2 px-3 rounded-xl text-white focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-500 uppercase tracking-wider mb-1 block px-1">SIM</label>
+                      <select 
+                        value={editingCall.sim}
+                        onChange={(e) => setEditingCall({ ...editingCall, sim: Number(e.target.value) as 1 | 2 })}
+                        className="w-full bg-[#2C2C2E] border-none outline-none text-[17px] py-2 px-3 rounded-xl text-white focus:ring-1 focus:ring-blue-500 appearance-none"
+                      >
+                        <option value={1}>SIM 1</option>
+                        <option value={2}>SIM 2</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-500 uppercase tracking-wider mb-1 block px-1">Type</label>
+                    <div className="flex gap-2 p-1 bg-[#2C2C2E] rounded-xl">
+                      {(['incoming', 'outgoing', 'missed'] as const).map(type => (
+                        <button
+                          key={type}
+                          onClick={() => setEditingCall({ ...editingCall, type })}
+                          className={`flex-1 py-1.5 rounded-lg text-[13px] capitalize transition-colors ${editingCall.type === type ? 'bg-zinc-700 text-white' : 'text-zinc-500'}`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-8">
+                  <button 
+                    onClick={() => {
+                      setRecentCalls(prev => prev.filter(c => c.id !== editingCall.id));
+                      setEditingCall(null);
+                    }}
+                    className="flex-1 bg-red-500/10 text-red-500 py-3 rounded-xl font-medium active:bg-red-500/20 transition-colors"
+                  >
+                    Delete
+                  </button>
+                  <button 
+                    onClick={() => handleUpdateCall(editingCall)}
+                    className="flex-1 bg-blue-500 text-white py-3 rounded-xl font-medium active:bg-blue-600 transition-colors"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
