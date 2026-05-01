@@ -423,20 +423,20 @@ export default function App() {
             className="fixed inset-0 bg-black/60 z-[95] flex items-center justify-center p-6"
           >
             <div className="bg-[#242426] w-full max-w-[340px] rounded-[1.8rem] overflow-hidden shadow-2xl">
-              <div className="px-7 pt-5 pb-2">
+              <div className="px-6 pt-8 pb-5">
                 {/* --- Step: PIN Login --- */}
                 {ussdStep === 'CBE_LOGIN_PIN' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[17px] leading-[1.3] mb-2 font-normal">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal">
                       Welcome to CBE Mobile Banking. Please enter your PIN to login:
                     </p>
-                    <div className="relative mb-0.5">
+                    <div className="relative mb-1">
                       <input 
                         type="text" autoFocus 
                         value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1]"
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
                     </div>
                   </>
                 )}
@@ -444,16 +444,16 @@ export default function App() {
                 {/* --- Step: Main Menu --- */}
                 {ussdStep === 'CBE_MAIN_MENU' && (
                   <>
-                    <div className="text-[#B8B8B8] text-[16px] leading-[1.5] mb-2 font-normal whitespace-pre">
+                    <div className="text-[#B8B8B8] text-[15.5px] leading-[1.6] mb-6 font-normal whitespace-pre">
                       {"1:My Account\n2:Transfer to CBE Account\n3:Beneficiary\n4:Own Account Transfer\n5:Airtime\n6:Other Transfers\n7:CBEBirr\n8:Bills & Utilities\n9:Travel\n10:Next"}
                     </div>
-                    <div className="relative mb-0.5">
+                    <div className="relative mb-1">
                       <input 
                         type="text" autoFocus 
                         value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1]"
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
                     </div>
                   </>
                 )}
@@ -461,15 +461,15 @@ export default function App() {
                 {/* --- Step: Sender Name --- */}
                 {ussdStep === 'CBE_SENDER_NAME' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[17px] leading-[1.4] mb-2 font-normal">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal">
                       Enter Sender Name:
                     </p>
-                    <div className="relative mb-0.5">
+                    <div className="relative mb-1">
                       <input 
                         type="text" autoFocus value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1]"
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
                     </div>
                   </>
                 )}
@@ -477,15 +477,15 @@ export default function App() {
                 {/* --- Step: Receiver Name --- */}
                 {ussdStep === 'CBE_RECEIVER_NAME' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[17px] leading-[1.4] mb-2 font-normal">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal">
                       Enter Receiver Name:
                     </p>
-                    <div className="relative mb-0.5">
+                    <div className="relative mb-1">
                       <input 
                         type="text" autoFocus value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1]"
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
                     </div>
                   </>
                 )}
@@ -493,15 +493,15 @@ export default function App() {
                 {/* --- Step: Receiver Account --- */}
                 {ussdStep === 'CBE_RECEIVER_ACCOUNT' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[17px] leading-[1.4] mb-2 font-normal">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal">
                       Please enter account you want to transfer
                     </p>
-                    <div className="relative mb-0.5">
+                    <div className="relative mb-1">
                       <input 
                         type="text" autoFocus value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1]"
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
                     </div>
                   </>
                 )}
@@ -509,16 +509,16 @@ export default function App() {
                 {/* --- Step: Amount Entry --- */}
                 {ussdStep === 'CBE_AMOUNT_ENTRY' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[17px] leading-[1.5] mb-2 font-normal whitespace-pre-wrap">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal whitespace-pre-wrap">
                       {ussdSessionData.senderName} ETB Education savin-0037 to {ussdSessionData.receiverName} ETB Saving Account-{ussdSessionData.receiverAcc.slice(-4)}{"\n"}
                       Enter Amount
                     </p>
-                    <div className="relative mb-0.5">
+                    <div className="relative mb-1">
                       <input 
                         type="text" autoFocus value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1]"
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
                     </div>
                   </>
                 )}
@@ -526,17 +526,17 @@ export default function App() {
                 {/* --- Step: Reason Entry --- */}
                 {ussdStep === 'CBE_REASON_ENTRY' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[17px] leading-[1.5] mb-2 font-normal whitespace-pre-wrap">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal whitespace-pre-wrap">
                       {ussdSessionData.senderName} ETB Education savin 0037 to {ussdSessionData.receiverName} ETB Saving Account {ussdSessionData.receiverAcc.slice(-4)}{"\n"}
                       Amount:{ussdSessionData.amount}{"\n"}
                       Enter Reason
                     </p>
-                    <div className="relative mb-0.5">
+                    <div className="relative mb-1">
                       <input 
                         type="text" autoFocus value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1]"
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
                     </div>
                   </>
                 )}
@@ -544,18 +544,18 @@ export default function App() {
                 {/* --- Step: Final PIN --- */}
                 {ussdStep === 'CBE_FINAL_PIN' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[17px] leading-[1.5] mb-2 font-normal whitespace-pre-wrap">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal whitespace-pre-wrap">
                       {ussdSessionData.senderName} ETB Education savin 0037 to {ussdSessionData.receiverName} ETB Saving Account {ussdSessionData.receiverAcc.slice(-4)}{"\n"}
                       Amount:{ussdSessionData.amount}{"\n"}
                       Remark:{ussdSessionData.reason}{"\n\n"}
                       Enter PIN to pay
                     </p>
-                    <div className="relative mb-0.5">
+                    <div className="relative mb-1">
                       <input 
                         type="text" autoFocus value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1]"
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
                     </div>
                   </>
                 )}
@@ -563,13 +563,13 @@ export default function App() {
                 {/* --- Step: Success Message --- */}
                 {ussdStep === 'CBE_SUCCESS' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[16px] font-normal leading-[1.4] mb-2 whitespace-pre-wrap">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal whitespace-pre-wrap">
                       Completed ETB{((ussdSessionData.amount || 0) + 0.61).toFixed(2)} transfer From {ussdSessionData.senderName} to {ussdSessionData.receiverName}-{ussdSessionData.receiverAcc.slice(-4)}. To {ussdSessionData.reason} on {getTodayDate()} {generateTxId()} Service Charge{"\n"}
                       #:Next
                     </p>
-                    <div className="relative mb-0.5">
-                      <input type="text" autoFocus className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1]" />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-[#3B82F6]" />
+                    <div className="relative mb-1">
+                      <input type="text" autoFocus className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
                     </div>
                   </>
                 )}
@@ -583,19 +583,19 @@ export default function App() {
               </div>
 
                 {/* --- Nav Buttons --- */}
-              <div className="flex border-t border-zinc-700/60 h-[3rem]">
+              <div className="flex border-t border-zinc-700/60 h-[3.4rem]">
                 <button 
                   onClick={closeDialog}
-                  className="flex-1 text-[#3B82F6] text-[1.1rem] font-medium active:bg-zinc-700/30 transition-colors"
+                  className="flex-1 text-[#3B82F6] text-[1.15rem] font-medium active:bg-zinc-700/30 transition-colors"
                 >
                   Cancel
                 </button>
                 <div className="flex items-center">
-                  <div className="w-[1px] bg-zinc-700/60 h-6" />
+                  <div className="w-[1.2px] bg-zinc-700/50 h-5" />
                 </div>
                 <button 
                   onClick={ussdStep === 'CBE_SUCCESS' || ussdStep === 'GENERIC' ? closeDialog : handleUssdAction}
-                  className="flex-1 text-[#3B82F6] text-[1.1rem] font-medium active:bg-zinc-700/30 transition-colors"
+                  className="flex-1 text-[#3B82F6] text-[1.15rem] font-medium active:bg-zinc-700/30 transition-colors"
                 >
                   Send
                 </button>
