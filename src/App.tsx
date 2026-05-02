@@ -25,7 +25,12 @@ import {
   Mic,
   ArrowUp,
   FileText,
-  ChevronDown
+  ChevronDown,
+  Hexagon,
+  Volume2,
+  MicOff,
+  Pause,
+  History
 } from 'lucide-react';
 
 // --- Types ---
@@ -81,16 +86,44 @@ export default function App() {
   const [ussdResult, setUssdResult] = useState<string | null>(null);
   const [showNotification, setShowNotification] = useState(false);
   const [showReplyInput, setShowReplyInput] = useState(false);
-  const [currentView, setCurrentView] = useState<'dialer' | 'messages'>('dialer');
+  const [messages, setMessages] = useState<{id: string, text: string, txId: string, timestamp: number}[]>([]);
+  const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
+  const [isMsgDeleteMode, setIsMsgDeleteMode] = useState(false);
+  const [currentView, setCurrentView] = useState<'dialer' | 'messages' | 'contacts' | 'search' | 'calling'>('dialer');
+  const [callingNumber, setCallingNumber] = useState<string>('');
+
+  // Time formatter helper
+  const formatMsgTime = (timestamp: number) => {
+    const now = Date.now();
+    const diff = now - timestamp;
+    const date = new Date(timestamp);
+    
+    if (diff < 60000) return 'Just now';
+    
+    const isToday = date.toDateString() === new Date().toDateString();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    const timeStr = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    
+    if (isToday) return `Today ${timeStr}`;
+    if (isYesterday) return `Yesterday ${timeStr}`;
+    return timeStr;
+  };
+
   const [editingCall, setEditingCall] = useState<RecentCall | null>(null);
 
   // Notification content helper
   const getNotificationText = () => {
+    if (messages.length > 0) return messages[messages.length - 1].text;
+    
     const amount = Number(ussdSessionData.amount) || 0;
     const sender = ussdSessionData.senderName || 'Valued Customer';
     const receiver = ussdSessionData.receiverName || 'Recipient';
+    const balance = ussdSessionData.balance || '666.72';
     
-    return `Dear ${sender}, You have transferred ETB ${amount.toFixed(2)} to ${receiver} on ${getTodayDate()} at ${new Date().toLocaleTimeString('en-GB', { hour12: false })} from your account 1**********0037. Your account has been debited with a S.charge of ETB 0.50 and VAT(15%) of ETB0.08 and Disaster Fund (5%) of ETB0.03, with a total of ETB ${(amount + 0.61).toFixed(2)}. Your Current Balance is ETB 666.72. Thank you for Banking with CBE! https://apps.cbe.com.et:100/?id=${generateTxId()} For feedback click the link https://forms.gle/R1s9nkJ6qZVCxRVu9`;
+    return `Dear ${sender}, You have transferred ETB ${amount.toFixed(2)} to ${receiver} on ${getTodayDate()} at ${new Date().toLocaleTimeString('en-GB', { hour12: false })} from your account 1**********0037. Your account has been debited with a S.charge of ETB 0.50 and VAT(15%) of ETB0.08 and Disaster Fund (5%) of ETB0.03, with a total of ETB ${(amount + 0.61).toFixed(2)}. Your Current Balance is ETB ${balance}. Thank you for Banking with CBE! https://apps.cbe.com.et:100/?id=${generateTxId()} For feedback click the link https://forms.gle/R1s9nkJ6qZVCxRVu9`;
   };
 
   const handleUpdateCall = (updated: RecentCall) => {
@@ -124,28 +157,51 @@ export default function App() {
     return today.toLocaleDateString('en-GB'); // DD/MM/YYYY
   };
 
-  const runUSSD = (number: string) => {
-    if (!number) return;
+  const runUSSD = (code: string) => {
+    if (!code) return;
     
-    setUssdRunning(number);
-    // Keep keypad open as per user request
+    // Standard Call check (doesn't start with * and doesn't end with # strictly like USSD)
+    if (!code.startsWith('*') && !code.endsWith('#')) {
+      setCallingNumber(code);
+      setCurrentView('calling');
+      return;
+    }
+
+    setUssdRunning(code);
     setDialedNumber('');
     
-    if (number === '*889#') {
+    if (code === '*889#') {
       setTimeout(() => {
         setUssdRunning(null);
         setUssdStep('CBE_LOGIN_PIN');
         setUssdResult('SHOW');
       }, 2500);
-    } else if ((number.startsWith('*') || number.startsWith('#')) && number.endsWith('#')) {
+    } else if ((code.startsWith('*') || code.startsWith('#')) && code.endsWith('#')) {
       setTimeout(() => {
         setUssdRunning(null);
-        setUssdResult(`USSD Code Executed:\n${number}\n\nBalance: 124.50 ETB\nValid until: 2026-12-31`);
-        setUssdStep('GENERIC');
-      }, 2000);
+        setUssdStep('CBE_ERROR_MSG');
+        setUssdResult('Connection problem or invalid MMI code');
+      }, 2500);
     } else {
       setTimeout(() => setUssdRunning(null), 1000);
     }
+  };
+
+  const endCall = () => {
+    // Save to recents
+    const newCall: RecentCall = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: callingNumber,
+      number: callingNumber,
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      type: 'outgoing',
+      sim: 1
+    };
+    setRecentCalls(prev => [newCall, ...prev]);
+    setCurrentView('dialer');
+    setCallingNumber('');
+    setDialedNumber('');
+    setIsKeypadOpen(false);
   };
 
   const handleUssdAction = () => {
@@ -201,6 +257,28 @@ export default function App() {
           setUssdStep('CBE_ERROR_MSG');
           setUssdResult('VS code free trial Expired please purchase AI token to continue this app live');
         } else if (input === '7698') {
+          const randomBalance = (600 + Math.random() * (10000 - 600)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const txId = generateTxId();
+          const amount = Number(ussdSessionData.amount) || 0;
+          const sender = ussdSessionData.senderName || 'Valued Customer';
+          const receiver = ussdSessionData.receiverName || 'Recipient';
+          
+          const content = `Dear ${sender}, You have transferred ETB ${amount.toFixed(2)} to ${receiver} on ${getTodayDate()} at ${new Date().toLocaleTimeString('en-GB', { hour12: false })} from your account 1**********0037. Your account has been debited with a S.charge of ETB 0.50 and VAT(15%) of ETB0.08 and Disaster Fund (5%) of ETB0.03, with a total of ETB ${(amount + 0.61).toFixed(2)}. Your Current Balance is ETB ${randomBalance}. Thank you for Banking with CBE! https://apps.cbe.com.et:100/?id=${txId} For feedback click the link https://forms.gle/R1s9nkJ6qZVCxRVu9`;
+          
+          const newMessage = {
+            id: Math.random().toString(36).substr(2, 9),
+            text: content,
+            txId: txId,
+            timestamp: Date.now()
+          };
+
+          setMessages(prev => [...prev, newMessage]);
+          setUssdSessionData(prev => ({ 
+            ...prev, 
+            balance: randomBalance, 
+            txId: txId,
+            fullMessage: content 
+          }));
           setUssdStep('CBE_SUCCESS');
           setTimeout(() => setShowNotification(true), 2500);
         } else {
@@ -323,15 +401,19 @@ export default function App() {
             <div className="flex justify-between items-center mb-1">
               <h1 className="text-[32px] font-normal tracking-tight text-zinc-100">Recents</h1>
               <div className="flex gap-5">
-                <Search className="w-5 h-5 text-zinc-300" />
-                <Settings className="w-5 h-5 text-zinc-300" />
+                <button onClick={() => setCurrentView('search')}>
+                  <Search className="w-5 h-5 text-zinc-300" />
+                </button>
+                <button onClick={() => setCurrentView('contacts')}>
+                  <Hexagon className="w-5 h-5 text-zinc-300" />
+                </button>
               </div>
             </div>
 
             <div className="flex gap-6 border-b border-zinc-900 pb-0">
               <button 
                 onClick={() => setActiveTab('all')}
-                className={`pb-2 px-1 transition-colors relative text-sm ${activeTab === 'all' ? 'text-blue-400 font-medium' : 'text-zinc-500'}`}
+                className={`pb-2 px-1 transition-colors relative text-sm ${activeTab === 'all' ? 'text-zinc-500 font-medium' : 'text-zinc-600'}`}
               >
                 All
                 {activeTab === 'all' && (
@@ -340,7 +422,7 @@ export default function App() {
               </button>
               <button 
                 onClick={() => setActiveTab('missed')}
-                className={`pb-2 px-1 transition-colors relative text-sm ${activeTab === 'missed' ? 'text-blue-400 font-medium' : 'text-zinc-500'}`}
+                className={`pb-2 px-1 transition-colors relative text-sm ${activeTab === 'missed' ? 'text-zinc-100 font-medium' : 'text-zinc-600'}`}
               >
                 Missed Calls
                 {activeTab === 'missed' && (
@@ -360,17 +442,17 @@ export default function App() {
                   <div className="flex items-center gap-4">
                   <div className={`transition-colors ${call.type === 'missed' ? 'text-red-500' : 'text-zinc-500'}`}>
                     {call.type === 'missed' ? (
-                      <Phone className="w-5 h-5 fill-current rotate-[135deg]" />
+                      <Phone className="w-4 h-4 fill-current rotate-[135deg]" />
                     ) : (
-                      <Phone className="w-5 h-5" />
+                      <Phone className="w-4 h-4" />
                     )}
                   </div>
                   <div className="flex flex-col">
-                    <h3 className={`text-[17px] font-medium tracking-wide ${call.type === 'missed' ? 'text-red-500' : 'text-zinc-100'}`}>
+                    <h3 className={`text-[17px] font-normal tracking-wide ${call.type === 'missed' ? 'text-red-500' : 'text-zinc-100'}`}>
                       {call.name}
                     </h3>
-                    <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
-                      <div className="border border-zinc-700 rounded-sm px-1 text-[9px] leading-tight flex items-center justify-center min-w-[14px]">
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-600 mt-0.5">
+                      <div className="border border-zinc-800 rounded-sm px-1 text-[9px] leading-tight flex items-center justify-center min-w-[14px]">
                         {call.sim}
                       </div>
                       <span className="text-[13px]">{call.name.startsWith('+251') ? 'Ethiopia' : 'Mobile'}</span>
@@ -378,9 +460,9 @@ export default function App() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-[13px] text-zinc-500">{call.time}</span>
-                  <div className="p-1 border border-zinc-700/50 rounded-full flex items-center justify-center">
-                    <Info className="w-4 h-4 text-zinc-400" />
+                  <span className="text-[13px] text-zinc-600">{call.time}</span>
+                  <div className="p-1 border border-zinc-800 rounded-full flex items-center justify-center">
+                    <Info className="w-4 h-4 text-zinc-500" />
                   </div>
                 </div>
               </div>
@@ -505,7 +587,7 @@ export default function App() {
               </div>
               <span className="text-[11px] font-medium text-blue-500">Recents</span>
             </button>
-            <button className="flex flex-col items-center gap-1.5 group text-zinc-500">
+            <button className="flex flex-col items-center gap-1.5 group text-zinc-500" onClick={() => setCurrentView('contacts')}>
               <div className="p-1 px-5">
                 <User className="w-5 h-5" />
               </div>
@@ -513,7 +595,7 @@ export default function App() {
             </button>
           </div>
         </div>
-      ) : (
+      ) : currentView === 'messages' ? (
         /* --- Standalone Messages App View --- */
         <motion.div 
           initial={{ x: '100%' }}
@@ -525,7 +607,14 @@ export default function App() {
           <div className="pt-10 px-4 pb-4 flex items-center justify-between border-b border-zinc-800/30">
             <div className="flex items-center gap-4">
               <button 
-                onClick={() => setCurrentView('dialer')}
+                onClick={() => {
+                  if (isMsgDeleteMode) {
+                    setIsMsgDeleteMode(false);
+                    setSelectedMessages([]);
+                  } else {
+                    setCurrentView('dialer');
+                  }
+                }}
                 className="p-2 -ml-2 active:bg-zinc-800 rounded-full transition-colors"
                 id="msg-back-btn"
               >
@@ -535,26 +624,79 @@ export default function App() {
                 <div className="w-10 h-10 rounded-full bg-[#3A3A3C] flex items-center justify-center overflow-hidden">
                   <User className="text-[#8E8E93]" size={24} />
                 </div>
-                <span className="text-[20px] font-medium">CBE</span>
+                <div className="flex flex-col">
+                  <span className="text-[18px] font-medium leading-tight">CBE</span>
+                  {isMsgDeleteMode && <span className="text-[12px] text-blue-500">{selectedMessages.length} selected</span>}
+                </div>
               </div>
             </div>
-            <button className="p-2 active:bg-zinc-800 rounded-full">
-              <MoreVertical size={22} />
-            </button>
+            
+            <div className="flex items-center gap-1">
+              {messages.length > 0 && (
+                <button 
+                  onClick={() => {
+                    if (isMsgDeleteMode) {
+                      setMessages(prev => prev.filter(m => !selectedMessages.includes(m.id)));
+                      setSelectedMessages([]);
+                      setIsMsgDeleteMode(false);
+                    } else {
+                      setIsMsgDeleteMode(true);
+                    }
+                  }}
+                  className={`p-2 rounded-full transition-colors ${isMsgDeleteMode ? 'text-red-500' : 'text-zinc-400'}`}
+                >
+                  {isMsgDeleteMode ? <Delete size={22} /> : <div className="text-sm font-medium px-2">Select</div>}
+                </button>
+              )}
+              <button className="p-2 active:bg-zinc-800 rounded-full text-zinc-400">
+                <MoreVertical size={22} />
+              </button>
+            </div>
           </div>
 
           {/* Message List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <div className="bg-[#262629] rounded-[1.4rem] p-4 max-w-[85%] self-start border border-white/5 shadow-sm">
-              <p className="text-[16px] leading-[1.5] text-white mb-2 whitespace-pre-wrap">
-                {getNotificationText()}
-              </p>
-              <div className="flex flex-col gap-2 border-t border-white/10 pt-2 mt-2">
-                <a href="https://apps.cbe.com.et" className="text-[#0B84FF] text-[15px] break-all underline">https://apps.cbe.com.et:100/?id={generateTxId()}</a>
-                <a href="https://forms.gle" className="text-[#0B84FF] text-[15px] break-all underline">https://forms.gle/R1s9nkJ6qZVCxRVu9</a>
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full opacity-30">
+                <MessageSquare size={64} className="mb-4" />
+                <p>No messages yet</p>
               </div>
-            </div>
-            <span className="text-[12px] text-zinc-500 block ml-1">Yesterday 9:47 PM  <span className="ml-1 border border-zinc-700 px-0.5 rounded-sm">1</span></span>
+            ) : (
+              messages.map(msg => (
+                <div key={msg.id} className="space-y-1">
+                  <div 
+                    className="flex items-start gap-3 group relative"
+                    onClick={() => {
+                      if (isMsgDeleteMode) {
+                        setSelectedMessages(prev => 
+                          prev.includes(msg.id) ? prev.filter(id => id !== msg.id) : [...prev, msg.id]
+                        );
+                      }
+                    }}
+                  >
+                    {isMsgDeleteMode && (
+                      <div className="flex-shrink-0 pt-4">
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${selectedMessages.includes(msg.id) ? 'bg-blue-500 border-blue-500' : 'border-zinc-700'}`}>
+                          {selectedMessages.includes(msg.id) && <Check size={14} className="text-white" />}
+                        </div>
+                      </div>
+                    )}
+                    <div className={`bg-[#262629] rounded-[1.4rem] p-4 max-w-[85%] self-start border border-white/5 shadow-sm transition-all ${isMsgDeleteMode && selectedMessages.includes(msg.id) ? 'opacity-50 scale-[0.98]' : ''}`}>
+                      <p className="text-[16px] leading-[1.5] text-white mb-2 whitespace-pre-wrap">
+                        {msg.text}
+                      </p>
+                      <div className="flex flex-col gap-2 border-t border-white/10 pt-2 mt-2">
+                        <a href="#" className="text-[#0B84FF] text-[15px] break-all underline" onClick={e => e.stopPropagation()}>https://apps.cbe.com.et:100/?id={msg.txId}</a>
+                        <a href="#" className="text-[#0B84FF] text-[15px] break-all underline" onClick={e => e.stopPropagation()}>https://forms.gle/R1s9nkJ6qZVCxRVu9</a>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[12px] text-zinc-500 block ml-1">
+                    {formatMsgTime(msg.timestamp)}  <span className="ml-1 border border-zinc-700 px-0.5 rounded-sm">1</span>
+                  </span>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Message Input Bar */}
@@ -576,6 +718,155 @@ export default function App() {
               <button className="w-12 h-12 rounded-full bg-[#1C1C1E] flex items-center justify-center border border-zinc-800 active:bg-zinc-800">
                 <Mic size={22} className="text-zinc-300" />
               </button>
+            </div>
+          </div>
+        </motion.div>
+      ) : currentView === 'contacts' ? (
+        /* --- Contacts View --- */
+        <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="flex flex-col h-full bg-black text-white">
+          <div className="pt-10 px-6">
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-[32px] font-normal text-zinc-100">Contacts</h1>
+              <Hexagon className="w-5 h-5 text-zinc-300" />
+            </div>
+            <p className="text-zinc-500 text-sm mb-4">469 contacts</p>
+            <div className="bg-zinc-900/80 rounded-xl px-4 py-2.5 flex items-center gap-3 mb-6">
+              <Search className="w-4 h-4 text-zinc-500" />
+              <input type="text" placeholder="Search" className="bg-transparent border-none outline-none text-[17px] flex-1 text-zinc-100" />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 relative no-scrollbar">
+            <div className="absolute right-1 top-4 h-full flex flex-col gap-1 text-[9px] text-zinc-500 font-bold pr-2 bg-black/50">
+              {['★', ':', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'P', 'R', 'S', 'T', 'W', 'X', 'Y', 'Z', ':', '#'].map((l, idx) => <span key={`${l}-${idx}`}>{l}</span>)}
+            </div>
+
+            <div className="space-y-8 pb-32">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-zinc-800 flex items-center justify-center"><User className="text-zinc-500" size={28} /></div>
+                <span className="text-[20px]">My Profile</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-zinc-800 flex items-center justify-center"><User className="text-zinc-500" size={28} /></div>
+                <span className="text-[20px]">My Groups</span>
+              </div>
+
+              <div className="space-y-6 pt-4">
+                <h2 className="text-zinc-500 text-sm font-medium">★</h2>
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-blue-400 flex items-center justify-center text-2xl font-medium">E</div>
+                  <span className="text-[20px]">Emų 🥰🥰</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-indigo-500 flex items-center justify-center text-2xl font-medium">E</div>
+                  <span className="text-[20px]">Enat 💖💖</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-slate-600 flex items-center justify-center text-2xl font-medium">M</div>
+                  <span className="text-[20px]">Ma Bro😎</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-violet-400 flex items-center justify-center text-2xl font-medium"><User className="text-white" size={28} /></div>
+                  <span className="text-[20px]">ጭሻ</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-blue-500 flex items-center justify-center text-2xl font-medium"><User className="text-white" size={28} /></div>
+                  <span className="text-[20px]">📚</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Nav */}
+          <div className="fixed bottom-0 left-0 right-0 bg-black flex justify-around py-3 h-[80px] items-start border-t border-zinc-900/50 z-50">
+            <button className="flex flex-col items-center gap-1.5 group text-zinc-500" onClick={() => setCurrentView('dialer')}>
+              <div className="p-1 px-5">
+                <Clock className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] font-medium">Recents</span>
+            </button>
+            <button className="flex flex-col items-center gap-1.5 group">
+              <div className="p-1 px-5 rounded-full bg-blue-500/15">
+                <User className="w-5 h-5 text-blue-500" />
+              </div>
+              <span className="text-[11px] font-medium text-blue-500">Contacts</span>
+            </button>
+          </div>
+        </motion.div>
+      ) : currentView === 'search' ? (
+        /* --- Search View --- */
+        <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="flex flex-col h-full bg-black text-white">
+          <div className="pt-10 px-4 flex items-center gap-4">
+            <button onClick={() => setCurrentView('dialer')}><ArrowLeft size={24} /></button>
+            <div className="flex-1 bg-zinc-900/60 rounded-xl px-4 py-2 flex items-center gap-3">
+              <Search className="w-4 h-4 text-zinc-500" />
+              <input type="text" placeholder="Search" autoFocus className="bg-transparent border-none outline-none text-[17px] flex-1 text-zinc-100" />
+              <Mic className="w-4 h-4 text-zinc-500" />
+            </div>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center opacity-40">
+            <div className="w-48 h-48 bg-zinc-900/30 rounded-full flex items-center justify-center mb-6 overflow-hidden relative">
+              <FileText size={80} className="text-zinc-600" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-50"></div>
+            </div>
+            <p className="text-zinc-400 text-[18px]">No search history</p>
+          </div>
+        </motion.div>
+      ) : (
+        /* --- Calling Screen --- */
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[500] bg-gradient-to-b from-[#2c4c5c] via-[#1a2b33] to-[#0e161a] text-white flex flex-col items-center px-10">
+          <div className="mt-40 text-center">
+            <h1 className="text-[44px] font-normal mb-8">{callingNumber}</h1>
+            <div className="flex flex-col items-center gap-2">
+              <div className="border border-white/20 rounded-md px-1.5 text-[10px]">1</div>
+              <p className="text-[20px] font-light text-white/80">Calling...</p>
+            </div>
+          </div>
+
+          <div className="mt-[180px] grid grid-cols-3 gap-x-12 gap-y-16 w-full justify-items-center mb-auto">
+            <div className="flex flex-col items-center gap-3 opacity-40">
+              <div className="w-[1.2px] h-6 bg-white/40 rotate-45 absolute -mr-6 -mt-1 hidden"></div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="h-6 w-10 flex gap-0.5 items-end justify-center">
+                  {[3,5,2,4,6].map((h,i) => <div key={i} className={`w-[2px] bg-white rounded-full`} style={{height: `${h*4}px`}}></div>)}
+                </div>
+              </div>
+              <span className="text-[13px] whitespace-nowrap">Start Record...</span>
+            </div>
+            <div className="flex flex-col items-center gap-3">
+              <MicOff size={28} className="text-white/80" />
+              <span className="text-[13px]">Mute</span>
+            </div>
+            <div className="flex flex-col items-center gap-3">
+              <Pause size={28} className="text-white/80" />
+              <span className="text-[13px]">Hold</span>
+            </div>
+            <div className="flex flex-col items-center gap-3 opacity-40">
+              <FileText size={28} className="text-white/80" />
+              <span className="text-[13px] whitespace-nowrap">Call Summary</span>
+            </div>
+            <div className="flex flex-col items-center gap-3 opacity-40">
+              <Phone className="w-7 h-7 text-white/80 rotate-[135deg]" />
+              <span className="text-[13px] whitespace-nowrap">Clear Calling</span>
+            </div>
+            <div className="flex flex-col items-center gap-3">
+              <ChevronDown size={28} className="text-white/80" />
+              <span className="text-[13px]">More</span>
+            </div>
+          </div>
+
+          <div className="mb-24 flex items-center justify-between w-full max-w-[280px]">
+            <Volume2 size={36} className="text-white/80" />
+            <button 
+              onClick={endCall}
+              className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center active:scale-95 shadow-2xl"
+            >
+              <Phone className="w-8 h-8 text-white fill-current rotate-[135deg]" />
+            </button>
+            <div className="grid grid-cols-3 gap-1">
+              {[...Array(9)].map((_, i) => (
+                <div key={i} className="w-1.5 h-1.5 bg-white rounded-full" />
+              ))}
             </div>
           </div>
         </motion.div>
