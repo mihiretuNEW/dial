@@ -529,25 +529,28 @@ export default function App() {
                     <Video className="w-5 h-5" />
                   </button>
 
-                  <div className="flex items-center bg-[#25D366] rounded-full h-[38px] w-24 shadow-lg overflow-hidden">
+                  <div className="flex items-center bg-[#25D366] rounded-full h-[44px] w-28 shadow-lg overflow-hidden">
                     <button 
                       onClick={() => runUSSD(dialedNumber)}
                       className="flex-1 flex items-center justify-center active:bg-black/10 transition-colors border-r border-white/10 h-full relative"
                     >
-                      <Phone className="w-2.5 h-2.5 text-white fill-current" />
-                      <span className="absolute bottom-1 right-2 text-[6px] font-bold text-white">1</span>
+                      <Phone className="w-3.5 h-3.5 text-white fill-current" />
+                      <span className="absolute bottom-1.5 right-2.5 text-[7px] font-bold text-white">1</span>
                     </button>
                     <button 
                       onClick={() => runUSSD(dialedNumber)}
                       className="flex-1 flex items-center justify-center active:bg-black/10 transition-colors h-full relative"
                     >
-                      <Phone className="w-2.5 h-2.5 text-white fill-current" />
-                      <span className="absolute bottom-1 right-2 text-[6px] font-bold text-white">2</span>
+                      <Phone className="w-3.5 h-3.5 text-white fill-current" />
+                      <span className="absolute bottom-1.5 right-2.5 text-[7px] font-bold text-white">2</span>
                     </button>
                   </div>
 
-                  <button className="bg-[#1ebe5d] rounded-full w-[36px] h-[36px] flex items-center justify-center shadow-lg active:scale-95">
-                    <MessageSquare className="w-3.5 h-3.5 text-white fill-current" />
+                  <button 
+                    onClick={() => setCurrentView('messages')}
+                    className="bg-[#1ebe5d] rounded-full w-[44px] h-[44px] flex items-center justify-center shadow-lg active:scale-95 ml-2"
+                  >
+                    <MessageSquare className="w-4.5 h-4.5 text-white fill-current" />
                   </button>
 
                   <button 
@@ -700,23 +703,35 @@ export default function App() {
           </div>
 
           {/* Message Input Bar */}
-          <div className="p-4 safe-area-bottom">
-            <div className="flex items-center gap-3">
-              <div className="flex-1 bg-[#242426] rounded-full px-4 py-3 flex items-center gap-3 border border-zinc-800/50 shadow-inner">
-                <Plus size={20} className="text-zinc-500" />
+          <div className="p-3 border-t border-zinc-900/50 bg-black flex flex-col gap-1 safe-area-bottom">
+            {ussdInput.length > 0 && (
+              <div className="flex items-end justify-end px-2">
+                <span className="text-[10px] text-zinc-500 mr-2">{ussdInput.length} / 1</span>
+              </div>
+            )}
+            <div className="flex items-center gap-3 px-1">
+              <div className="flex-1 bg-[#242426] rounded-2xl p-2 flex items-center gap-3 border border-white/5 shadow-inner">
+                <button className="w-8 h-8 rounded-full flex items-center justify-center active:bg-zinc-800">
+                  <Plus className="text-zinc-400" size={22} />
+                </button>
                 <input 
                   type="text" 
-                  placeholder="Message"
-                  className="flex-1 bg-transparent border-none outline-none text-[16.5px] text-zinc-200 placeholder-zinc-500"
+                  placeholder="Message" 
+                  className="bg-transparent border-none outline-none text-[16.5px] flex-1 text-zinc-100 placeholder:text-zinc-600"
+                  value={ussdInput}
+                  onChange={(e) => setUssdInput(e.target.value)}
                 />
-                <div className="flex items-center gap-2">
-                  <FileText size={20} className="text-zinc-500" />
-                  <span className="text-zinc-500 text-[12px] font-medium">1</span>
-                  <ChevronDown size={14} className="text-zinc-500 -ml-1" />
+                <div className="h-6 w-[1px] bg-zinc-800 mx-1"></div>
+                <div className="flex items-center gap-1 px-2 text-zinc-400 cursor-pointer">
+                  <span className="text-[12px] border border-zinc-700/50 rounded px-1 min-w-[16px] text-center font-medium">1</span>
+                  <ChevronDown size={14} />
                 </div>
               </div>
-              <button className="w-12 h-12 rounded-full bg-[#1C1C1E] flex items-center justify-center border border-zinc-800 active:bg-zinc-800">
-                <Mic size={22} className="text-zinc-300" />
+              <button 
+                onClick={handleUssdAction}
+                className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-300 ${ussdInput.length > 0 ? 'bg-[#0B84FF] scale-100 shadow-[0_0_15px_-3px_rgba(11,132,255,0.5)]' : 'bg-zinc-800 opacity-40 scale-95'}`}
+              >
+                {ussdInput.length > 0 ? <ArrowUp className="text-white" size={24} strokeWidth={2.5} /> : <Mic size={22} className="text-zinc-400" />}
               </button>
             </div>
           </div>
