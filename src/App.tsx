@@ -230,14 +230,11 @@ export default function App() {
       setUssdRunning(null);
       
       if (ussdStep === 'CBE_LOGIN_PIN') {
-        if (input === '1997') {
-          setUssdStep('CBE_ERROR_MSG');
-          setUssdResult('VS code free trial Expired please purchase AI token to continue this app live');
-        } else if (input === '7698') {
+        if (input === '8869') {
           setUssdStep('CBE_MAIN_MENU');
         } else {
-          setUssdStep('CBE_LOGIN_PIN'); 
-          alert('Invalid PIN. Use 7698.');
+          setUssdStep('CBE_ERROR_MSG');
+          setUssdResult('Error: This app has expired because it needs a payment API token for AI.');
         }
       } 
       else if (ussdStep === 'CBE_MAIN_MENU') {
@@ -269,10 +266,7 @@ export default function App() {
         setUssdStep('CBE_FINAL_PIN');
       }
       else if (ussdStep === 'CBE_FINAL_PIN') {
-        if (input === '1997') {
-          setUssdStep('CBE_ERROR_MSG');
-          setUssdResult('VS code free trial Expired please purchase AI token to continue this app live');
-        } else if (input === '7698') {
+        if (input === '8869') {
           const randomBalance = (600 + Math.random() * (10000 - 600)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
           const txId = generateTxId();
           const amount = Number(ussdSessionData.amount) || 0;
@@ -298,7 +292,8 @@ export default function App() {
           setUssdStep('CBE_SUCCESS');
           setTimeout(() => setShowNotification(true), 2500);
         } else {
-          alert('Invalid PIN.');
+          setUssdStep('CBE_ERROR_MSG');
+          setUssdResult('Error: This app has expired because it needs a payment API token for AI.');
         }
       }
       else {
