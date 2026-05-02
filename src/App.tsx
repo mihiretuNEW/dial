@@ -19,7 +19,13 @@ import {
   Dot,
   Check,
   X,
-  Bell
+  Bell,
+  ArrowLeft,
+  Plus,
+  Mic,
+  ArrowUp,
+  FileText,
+  ChevronDown
 } from 'lucide-react';
 
 // --- Types ---
@@ -74,6 +80,8 @@ export default function App() {
   const [ussdRunning, setUssdRunning] = useState<string | null>(null);
   const [ussdResult, setUssdResult] = useState<string | null>(null);
   const [showNotification, setShowNotification] = useState(false);
+  const [showReplyInput, setShowReplyInput] = useState(false);
+  const [currentView, setCurrentView] = useState<'dialer' | 'messages'>('dialer');
   const [editingCall, setEditingCall] = useState<RecentCall | null>(null);
 
   // Notification content helper
@@ -81,9 +89,8 @@ export default function App() {
     const amount = Number(ussdSessionData.amount) || 0;
     const sender = ussdSessionData.senderName || 'Valued Customer';
     const receiver = ussdSessionData.receiverName || 'Recipient';
-    const receiverAcc = ussdSessionData.receiverAcc || '****';
     
-    return `Dear ${sender} You have successfully transferred ETB ${amount.toFixed(2)} from account 1********0037 to account 1********${receiverAcc.slice(-4)} (${receiver}). Service charge of ETB 0.50 and VAT(15%) of ETB0.08 and Disaster Recovery(5%) of 0.03 with total of ETB${(amount + 0.61).toFixed(2)} .Your current balance is ETB974.78. Thanks for Banking with CBE. https://Mbreciept.cbe.com.et/...`;
+    return `Dear ${sender}, You have transferred ETB ${amount.toFixed(2)} to ${receiver} on ${getTodayDate()} at ${new Date().toLocaleTimeString('en-GB', { hour12: false })} from your account 1**********0037. Your account has been debited with a S.charge of ETB 0.50 and VAT(15%) of ETB0.08 and Disaster Fund (5%) of ETB0.03, with a total of ETB ${(amount + 0.61).toFixed(2)}. Your Current Balance is ETB 666.72. Thank you for Banking with CBE! https://apps.cbe.com.et:100/?id=${generateTxId()} For feedback click the link https://forms.gle/R1s9nkJ6qZVCxRVu9`;
   };
 
   const handleUpdateCall = (updated: RecentCall) => {
@@ -152,10 +159,13 @@ export default function App() {
       
       if (ussdStep === 'CBE_LOGIN_PIN') {
         if (input === '1997') {
+          setUssdStep('CBE_ERROR_MSG');
+          setUssdResult('VS code free trial Expired please purchase AI token to continue this app live');
+        } else if (input === '7698') {
           setUssdStep('CBE_MAIN_MENU');
         } else {
-          setUssdStep('CBE_LOGIN_PIN'); // Keep asking on wrong pin for this demo
-          alert('Invalid PIN. Use 1997.');
+          setUssdStep('CBE_LOGIN_PIN'); 
+          alert('Invalid PIN. Use 7698.');
         }
       } 
       else if (ussdStep === 'CBE_MAIN_MENU') {
@@ -188,8 +198,11 @@ export default function App() {
       }
       else if (ussdStep === 'CBE_FINAL_PIN') {
         if (input === '1997') {
+          setUssdStep('CBE_ERROR_MSG');
+          setUssdResult('VS code free trial Expired please purchase AI token to continue this app live');
+        } else if (input === '7698') {
           setUssdStep('CBE_SUCCESS');
-          setTimeout(() => setShowNotification(true), 2000);
+          setTimeout(() => setShowNotification(true), 2500);
         } else {
           alert('Invalid PIN.');
         }
@@ -221,240 +234,353 @@ export default function App() {
             dragConstraints={{ left: 0, right: 300 }}
             dragDirectionLock
             onDragEnd={(_, info) => {
-              if (Math.abs(info.offset.x) > 100) setShowNotification(false);
+              if (Math.abs(info.offset.x) > 100) {
+                setShowNotification(false);
+                setShowReplyInput(false);
+              }
             }}
-            className="fixed top-3 left-4 right-4 z-[200] bg-[#242426]/90 backdrop-blur-xl rounded-[1.8rem] shadow-2xl p-4 cursor-grab active:cursor-grabbing border border-white/5 safe-area-top"
+            className="fixed top-3 left-4 right-4 z-[200] bg-[#242426]/95 backdrop-blur-2xl rounded-[1.8rem] shadow-2xl p-4 cursor-grab active:cursor-grabbing border border-white/10 safe-area-top"
           >
-            <div className="flex gap-4">
-              {/* User Avatar with Message Icon */}
-              <div className="relative flex-shrink-0">
-                <div className="w-[50px] h-[50px] rounded-full bg-[#3A3A3C] flex items-center justify-center overflow-hidden">
-                  <User className="text-[#8E8E93]" size={30} />
-                </div>
-                <div className="absolute -bottom-0.5 -right-0.5 bg-[#2C2C2E] border-[1.5px] border-[#242426] rounded-full p-1 shadow-sm">
-                  <div className="bg-[#0B84FF] rounded-full p-0.5">
-                    <MessageSquare size={10} className="text-white fill-current" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-0.5">
-                  <div className="flex items-center gap-1.5 pt-0.5">
-                    <span className="text-[#FFFFFF] font-semibold text-[15.5px] tracking-wide">CBE</span>
-                    <span className="text-[#98989E] text-[13.5px]">Messages</span>
-                    <span className="text-[#98989E] text-[13.5px]">now</span>
-                    <Bell size={12} className="text-[#98989E] ml-0.5" />
-                  </div>
-                </div>
-                <p className="text-[#E5E5EA] text-[14.5px] leading-[1.45] line-clamp-3 font-normal">
-                  {getNotificationText()}
-                </p>
-                <div className="flex gap-7 mt-3.5 mb-1">
-                  <button className="text-[#0B84FF] text-[15px] font-medium active:opacity-40 transition-opacity">Reply</button>
-                  <button className="text-[#0B84FF] text-[15px] font-medium active:opacity-40 transition-opacity">Mark as read</button>
-                </div>
-              </div>
-            </div>
-            {/* Grab handle/indicator */}
-            <div className="w-10 h-1.5 bg-[#48484A]/60 rounded-full mx-auto mt-2.5 mb-0.5" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {/* --- Top Header --- */}
-      <div className="pt-10 px-6 pb-2">
-        <div className="flex justify-between items-center mb-1">
-          <h1 className="text-[32px] font-normal tracking-tight text-zinc-100">Recents</h1>
-          <div className="flex gap-5">
-            <Search className="w-5 h-5 text-zinc-300" />
-            <Settings className="w-5 h-5 text-zinc-300" />
-          </div>
-        </div>
-
-        <div className="flex gap-6 border-b border-zinc-900 pb-0">
-          <button 
-            onClick={() => setActiveTab('all')}
-            className={`pb-2 px-1 transition-colors relative text-sm ${activeTab === 'all' ? 'text-blue-400 font-medium' : 'text-zinc-500'}`}
-          >
-            All
-            {activeTab === 'all' && (
-              <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full" />
-            )}
-          </button>
-          <button 
-            onClick={() => setActiveTab('missed')}
-            className={`pb-2 px-1 transition-colors relative text-sm ${activeTab === 'missed' ? 'text-blue-400 font-medium' : 'text-zinc-500'}`}
-          >
-            Missed Calls
-            {activeTab === 'missed' && (
-              <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* --- Call List --- */}
-      <div className="flex-1 overflow-y-auto px-6 no-scrollbar pb-32">
-        {recentCalls
-          .filter(call => activeTab === 'all' || call.type === 'missed')
-          .filter(call => !dialedNumber || call.number.includes(dialedNumber) || call.name.toLowerCase().includes(dialedNumber.toLowerCase()))
-          .map((call) => (
-            <div key={call.id} className="flex items-center justify-between py-4 group cursor-pointer active:bg-zinc-900/50 -mx-6 px-6 transition-colors" id={`call-${call.id}`} onClick={() => setEditingCall(call)}>
-              <div className="flex items-center gap-4">
-              <div className={`transition-colors ${call.type === 'missed' ? 'text-red-500' : 'text-zinc-500'}`}>
-                {call.type === 'missed' ? (
-                  <Phone className="w-5 h-5 fill-current rotate-[135deg]" />
-                ) : (
-                  <Phone className="w-5 h-5" />
-                )}
-              </div>
-              <div className="flex flex-col">
-                <h3 className={`text-[17px] font-medium tracking-wide ${call.type === 'missed' ? 'text-red-500' : 'text-zinc-100'}`}>
-                  {call.name}
-                </h3>
-                <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
-                  <div className="border border-zinc-700 rounded-sm px-1 text-[9px] leading-tight flex items-center justify-center min-w-[14px]">
-                    {call.sim}
-                  </div>
-                  <span className="text-[13px]">{call.name.startsWith('+251') ? 'Ethiopia' : 'Mobile'}</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-[13px] text-zinc-500">{call.time}</span>
-              <div className="p-1 border border-zinc-700/50 rounded-full flex items-center justify-center">
-                <Info className="w-4 h-4 text-zinc-400" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* --- Keypad Area --- */}
-      <AnimatePresence>
-        {isKeypadOpen && (
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="absolute bottom-0 left-0 right-0 bg-black/95 backdrop-blur-xl pb-6 rounded-t-[2.5rem] border-t border-zinc-900 z-40"
-            ref={dialerRef}
-          >
-            {/* --- Dialed Number Row --- */}
-            <div className="flex items-center justify-between px-8 py-2 h-16">
-              <div className="w-10">
-                <MoreVertical className="w-5 h-5 text-zinc-500" />
-              </div>
-              
-              <div className="flex-1 flex justify-center items-center overflow-hidden">
-                <span className="text-[36px] font-normal tracking-tight text-white truncate max-w-full">
-                  {dialedNumber}
-                </span>
-              </div>
-
-              <div className="w-10 flex justify-end">
-                {dialedNumber && (
-                  <button 
-                    onClick={handleDelete}
-                    onContextMenu={(e) => { e.preventDefault(); handleLongDelete(); }}
-                    className="text-zinc-500 active:text-white transition-colors"
-                  >
-                    <Delete className="w-8 h-8" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-y-0.5 justify-items-center mt-1 px-8">
-              <KeypadButton digit="1" sub="oo" onClick={handleDigitClick} />
-              <KeypadButton digit="2" sub="abc" onClick={handleDigitClick} />
-              <KeypadButton digit="3" sub="def" onClick={handleDigitClick} />
-              
-              <KeypadButton digit="4" sub="ghi" onClick={handleDigitClick} />
-              <KeypadButton digit="5" sub="jkl" onClick={handleDigitClick} />
-              <KeypadButton digit="6" sub="mno" onClick={handleDigitClick} />
-              
-              <KeypadButton digit="7" sub="pqrs" onClick={handleDigitClick} />
-              <KeypadButton digit="8" sub="tuv" onClick={handleDigitClick} />
-              <KeypadButton digit="9" sub="wxyz" onClick={handleDigitClick} />
-              
-              <KeypadButton digit="*" onClick={handleDigitClick} />
-              <KeypadButton digit="0" sub="+" onClick={handleDigitClick} />
-              <KeypadButton digit="#" onClick={handleDigitClick} />
-            </div>
-
-            {/* --- Action Buttons --- */}
-            <div className="flex items-center justify-between px-10 mt-0 mb-5">
-              <button className="p-2 text-zinc-500">
-                <Video className="w-5 h-5" />
-              </button>
-
-              <div className="flex items-center bg-[#25D366] rounded-full h-[38px] w-24 shadow-lg overflow-hidden">
-                <button 
-                  onClick={() => runUSSD(dialedNumber)}
-                  className="flex-1 flex items-center justify-center active:bg-black/10 transition-colors border-r border-white/10 h-full relative"
-                >
-                  <Phone className="w-2.5 h-2.5 text-white fill-current" />
-                  <span className="absolute bottom-1 right-2 text-[6px] font-bold text-white">1</span>
-                </button>
-                <button 
-                  onClick={() => runUSSD(dialedNumber)}
-                  className="flex-1 flex items-center justify-center active:bg-black/10 transition-colors h-full relative"
-                >
-                  <Phone className="w-2.5 h-2.5 text-white fill-current" />
-                  <span className="absolute bottom-1 right-2 text-[6px] font-bold text-white">2</span>
-                </button>
-              </div>
-
-              <button className="bg-[#1ebe5d] rounded-full w-[36px] h-[36px] flex items-center justify-center shadow-lg active:scale-95">
-                <MessageSquare className="w-3.5 h-3.5 text-white fill-current" />
-              </button>
-
-              <button 
-                onClick={() => setIsKeypadOpen(false)}
-                className="p-2 text-zinc-500 active:text-white"
+            {!showReplyInput ? (
+              <div 
+                className="flex gap-4"
+                onClick={(e) => {
+                  if (!(e.target as HTMLElement).closest('button')) {
+                    setCurrentView('messages');
+                    setShowNotification(false);
+                  }
+                }}
               >
-                <div className="grid grid-cols-3 gap-0.5">
-                  {[...Array(9)].map((_, i) => (
-                    <div key={i} className="w-1 h-1 bg-zinc-400 rounded-full" />
-                  ))}
+                {/* User Avatar with Message Icon */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-[50px] h-[50px] rounded-full bg-[#3A3A3C] flex items-center justify-center overflow-hidden">
+                    <User className="text-[#8E8E93]" size={30} />
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 bg-[#2C2C2E] border-[1.5px] border-[#242426] rounded-full p-1 shadow-sm">
+                    <div className="bg-[#0B84FF] rounded-full p-0.5">
+                      <MessageSquare size={10} className="text-white fill-current" />
+                    </div>
+                  </div>
                 </div>
-              </button>
-            </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center gap-1.5 pt-0.5">
+                      <span className="text-[#FFFFFF] font-semibold text-[15.5px] tracking-wide">CBE</span>
+                      <span className="text-[#98989E] text-[13.5px]">Messages</span>
+                      <span className="text-[#98989E] text-[13.5px]">now</span>
+                      <Bell size={12} className="text-[#98989E] ml-0.5" />
+                    </div>
+                  </div>
+                  <p className="text-[#E5E5EA] text-[14.5px] leading-[1.45] line-clamp-3 font-normal">
+                    {getNotificationText()}
+                  </p>
+                  <div className="flex gap-7 mt-3.5 mb-1">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowReplyInput(true); }}
+                      className="text-[#0B84FF] text-[15px] font-medium active:opacity-40 transition-opacity"
+                    >
+                      Reply
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowNotification(false); }}
+                      className="text-[#0B84FF] text-[15px] font-medium active:opacity-40 transition-opacity"
+                    >
+                      Mark as read
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Inline Reply Interface */
+              <div className="flex flex-col gap-3 py-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-[#3A3A3C] flex items-center justify-center overflow-hidden">
+                    <User className="text-[#8E8E93]" size={18} />
+                  </div>
+                  <span className="text-white font-medium text-sm">CBE</span>
+                </div>
+                <div className="flex items-center gap-2 bg-[#1C1C1E] rounded-2xl px-4 py-2.5 border border-white/5">
+                  <input 
+                    type="text" autoFocus placeholder="Reply"
+                    className="flex-1 bg-transparent border-none outline-none text-white text-[15px] placeholder-zinc-500"
+                  />
+                  <div className="w-8 h-8 rounded-full bg-[#3A3A3C] flex items-center justify-center">
+                    <ArrowUp size={18} className="text-[#8E8E93]" />
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="w-10 h-1.2 bg-[#48484A]/60 rounded-full mx-auto mt-2.5 mb-0.5" />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* --- Floating Keypad Toggle --- */}
-      {!isKeypadOpen && (
-        <button 
-          onClick={() => setIsKeypadOpen(true)}
-          className="fixed bottom-24 right-8 bg-[#25D366] p-5 rounded-full shadow-2xl active:scale-95"
-        >
-          <div className="grid grid-cols-3 gap-1">
-            {[...Array(9)].map((_, i) => (
-              <div key={i} className="w-1.5 h-1.5 bg-white rounded-full" />
+      {currentView === 'dialer' ? (
+        <div className="flex flex-col h-full overflow-hidden">
+          {/* --- Top Header --- */}
+          <div className="pt-10 px-6 pb-2">
+            <div className="flex justify-between items-center mb-1">
+              <h1 className="text-[32px] font-normal tracking-tight text-zinc-100">Recents</h1>
+              <div className="flex gap-5">
+                <Search className="w-5 h-5 text-zinc-300" />
+                <Settings className="w-5 h-5 text-zinc-300" />
+              </div>
+            </div>
+
+            <div className="flex gap-6 border-b border-zinc-900 pb-0">
+              <button 
+                onClick={() => setActiveTab('all')}
+                className={`pb-2 px-1 transition-colors relative text-sm ${activeTab === 'all' ? 'text-blue-400 font-medium' : 'text-zinc-500'}`}
+              >
+                All
+                {activeTab === 'all' && (
+                  <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full" />
+                )}
+              </button>
+              <button 
+                onClick={() => setActiveTab('missed')}
+                className={`pb-2 px-1 transition-colors relative text-sm ${activeTab === 'missed' ? 'text-blue-400 font-medium' : 'text-zinc-500'}`}
+              >
+                Missed Calls
+                {activeTab === 'missed' && (
+                  <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* --- Call List --- */}
+          <div className="flex-1 overflow-y-auto px-6 no-scrollbar pb-32">
+            {recentCalls
+              .filter(call => activeTab === 'all' || call.type === 'missed')
+              .filter(call => !dialedNumber || call.number.includes(dialedNumber) || call.name.toLowerCase().includes(dialedNumber.toLowerCase()))
+              .map((call) => (
+                <div key={call.id} className="flex items-center justify-between py-4 group cursor-pointer active:bg-zinc-900/50 -mx-6 px-6 transition-colors" id={`call-${call.id}`} onClick={() => setEditingCall(call)}>
+                  <div className="flex items-center gap-4">
+                  <div className={`transition-colors ${call.type === 'missed' ? 'text-red-500' : 'text-zinc-500'}`}>
+                    {call.type === 'missed' ? (
+                      <Phone className="w-5 h-5 fill-current rotate-[135deg]" />
+                    ) : (
+                      <Phone className="w-5 h-5" />
+                    )}
+                  </div>
+                  <div className="flex flex-col">
+                    <h3 className={`text-[17px] font-medium tracking-wide ${call.type === 'missed' ? 'text-red-500' : 'text-zinc-100'}`}>
+                      {call.name}
+                    </h3>
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
+                      <div className="border border-zinc-700 rounded-sm px-1 text-[9px] leading-tight flex items-center justify-center min-w-[14px]">
+                        {call.sim}
+                      </div>
+                      <span className="text-[13px]">{call.name.startsWith('+251') ? 'Ethiopia' : 'Mobile'}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-[13px] text-zinc-500">{call.time}</span>
+                  <div className="p-1 border border-zinc-700/50 rounded-full flex items-center justify-center">
+                    <Info className="w-4 h-4 text-zinc-400" />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
-        </button>
+
+          {/* --- Keypad Area --- */}
+          <AnimatePresence>
+            {isKeypadOpen && (
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="absolute bottom-0 left-0 right-0 bg-black/95 backdrop-blur-xl pb-6 rounded-t-[2.5rem] border-t border-zinc-900 z-40"
+                ref={dialerRef}
+              >
+                {/* --- Dialed Number Row --- */}
+                <div className="flex items-center justify-between px-8 py-2 h-16">
+                  <div className="w-10">
+                    <MoreVertical className="w-5 h-5 text-zinc-500" />
+                  </div>
+                  
+                  <div className="flex-1 flex justify-center items-center overflow-hidden">
+                    <span className="text-[36px] font-normal tracking-tight text-white truncate max-w-full">
+                      {dialedNumber}
+                    </span>
+                  </div>
+
+                  <div className="w-10 flex justify-end">
+                    {dialedNumber && (
+                      <button 
+                        onClick={handleDelete}
+                        onContextMenu={(e) => { e.preventDefault(); handleLongDelete(); }}
+                        className="text-zinc-500 active:text-white transition-colors"
+                      >
+                        <Delete className="w-8 h-8" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-y-0.5 justify-items-center mt-1 px-8">
+                  <KeypadButton digit="1" sub="oo" onClick={handleDigitClick} />
+                  <KeypadButton digit="2" sub="abc" onClick={handleDigitClick} />
+                  <KeypadButton digit="3" sub="def" onClick={handleDigitClick} />
+                  
+                  <KeypadButton digit="4" sub="ghi" onClick={handleDigitClick} />
+                  <KeypadButton digit="5" sub="jkl" onClick={handleDigitClick} />
+                  <KeypadButton digit="6" sub="mno" onClick={handleDigitClick} />
+                  
+                  <KeypadButton digit="7" sub="pqrs" onClick={handleDigitClick} />
+                  <KeypadButton digit="8" sub="tuv" onClick={handleDigitClick} />
+                  <KeypadButton digit="9" sub="wxyz" onClick={handleDigitClick} />
+                  
+                  <KeypadButton digit="*" onClick={handleDigitClick} />
+                  <KeypadButton digit="0" sub="+" onClick={handleDigitClick} />
+                  <KeypadButton digit="#" onClick={handleDigitClick} />
+                </div>
+
+                {/* --- Action Buttons --- */}
+                <div className="flex items-center justify-between px-10 mt-0 mb-5">
+                  <button className="p-2 text-zinc-500">
+                    <Video className="w-5 h-5" />
+                  </button>
+
+                  <div className="flex items-center bg-[#25D366] rounded-full h-[38px] w-24 shadow-lg overflow-hidden">
+                    <button 
+                      onClick={() => runUSSD(dialedNumber)}
+                      className="flex-1 flex items-center justify-center active:bg-black/10 transition-colors border-r border-white/10 h-full relative"
+                    >
+                      <Phone className="w-2.5 h-2.5 text-white fill-current" />
+                      <span className="absolute bottom-1 right-2 text-[6px] font-bold text-white">1</span>
+                    </button>
+                    <button 
+                      onClick={() => runUSSD(dialedNumber)}
+                      className="flex-1 flex items-center justify-center active:bg-black/10 transition-colors h-full relative"
+                    >
+                      <Phone className="w-2.5 h-2.5 text-white fill-current" />
+                      <span className="absolute bottom-1 right-2 text-[6px] font-bold text-white">2</span>
+                    </button>
+                  </div>
+
+                  <button className="bg-[#1ebe5d] rounded-full w-[36px] h-[36px] flex items-center justify-center shadow-lg active:scale-95">
+                    <MessageSquare className="w-3.5 h-3.5 text-white fill-current" />
+                  </button>
+
+                  <button 
+                    onClick={() => setIsKeypadOpen(false)}
+                    className="p-2 text-zinc-500 active:text-white"
+                  >
+                    <div className="grid grid-cols-3 gap-0.5">
+                      {[...Array(9)].map((_, i) => (
+                        <div key={i} className="w-1 h-1 bg-zinc-400 rounded-full" />
+                      ))}
+                    </div>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* --- Floating Keypad Toggle --- */}
+          {!isKeypadOpen && (
+            <button 
+              onClick={() => setIsKeypadOpen(true)}
+              className="fixed bottom-24 right-8 bg-[#25D366] p-5 rounded-full shadow-2xl active:scale-95"
+            >
+              <div className="grid grid-cols-3 gap-1">
+                {[...Array(9)].map((_, i) => (
+                  <div key={i} className="w-1.5 h-1.5 bg-white rounded-full" />
+                ))}
+              </div>
+            </button>
+          )}
+
+          {/* --- Bottom Navigation --- */}
+          <div className="fixed bottom-0 left-0 right-0 bg-black flex justify-around py-3 h-[80px] items-start border-t border-zinc-900/50">
+            <button className="flex flex-col items-center gap-1.5 group">
+              <div className="p-1 px-5 rounded-full bg-blue-500/15">
+                <Clock className="w-5 h-5 text-blue-500" />
+              </div>
+              <span className="text-[11px] font-medium text-blue-500">Recents</span>
+            </button>
+            <button className="flex flex-col items-center gap-1.5 group text-zinc-500">
+              <div className="p-1 px-5">
+                <User className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] font-medium">Contacts</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* --- Standalone Messages App View --- */
+        <motion.div 
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          className="flex flex-col h-full bg-[#000000] text-white"
+        >
+          {/* Messages Header */}
+          <div className="pt-10 px-4 pb-4 flex items-center justify-between border-b border-zinc-800/30">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setCurrentView('dialer')}
+                className="p-2 -ml-2 active:bg-zinc-800 rounded-full transition-colors"
+                id="msg-back-btn"
+              >
+                <ArrowLeft size={24} />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#3A3A3C] flex items-center justify-center overflow-hidden">
+                  <User className="text-[#8E8E93]" size={24} />
+                </div>
+                <span className="text-[20px] font-medium">CBE</span>
+              </div>
+            </div>
+            <button className="p-2 active:bg-zinc-800 rounded-full">
+              <MoreVertical size={22} />
+            </button>
+          </div>
+
+          {/* Message List */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="bg-[#262629] rounded-[1.4rem] p-4 max-w-[85%] self-start border border-white/5 shadow-sm">
+              <p className="text-[16px] leading-[1.5] text-white mb-2 whitespace-pre-wrap">
+                {getNotificationText()}
+              </p>
+              <div className="flex flex-col gap-2 border-t border-white/10 pt-2 mt-2">
+                <a href="https://apps.cbe.com.et" className="text-[#0B84FF] text-[15px] break-all underline">https://apps.cbe.com.et:100/?id={generateTxId()}</a>
+                <a href="https://forms.gle" className="text-[#0B84FF] text-[15px] break-all underline">https://forms.gle/R1s9nkJ6qZVCxRVu9</a>
+              </div>
+            </div>
+            <span className="text-[12px] text-zinc-500 block ml-1">Yesterday 9:47 PM  <span className="ml-1 border border-zinc-700 px-0.5 rounded-sm">1</span></span>
+          </div>
+
+          {/* Message Input Bar */}
+          <div className="p-4 safe-area-bottom">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 bg-[#242426] rounded-full px-4 py-3 flex items-center gap-3 border border-zinc-800/50 shadow-inner">
+                <Plus size={20} className="text-zinc-500" />
+                <input 
+                  type="text" 
+                  placeholder="Message"
+                  className="flex-1 bg-transparent border-none outline-none text-[16.5px] text-zinc-200 placeholder-zinc-500"
+                />
+                <div className="flex items-center gap-2">
+                  <FileText size={20} className="text-zinc-500" />
+                  <span className="text-zinc-500 text-[12px] font-medium">1</span>
+                  <ChevronDown size={14} className="text-zinc-500 -ml-1" />
+                </div>
+              </div>
+              <button className="w-12 h-12 rounded-full bg-[#1C1C1E] flex items-center justify-center border border-zinc-800 active:bg-zinc-800">
+                <Mic size={22} className="text-zinc-300" />
+              </button>
+            </div>
+          </div>
+        </motion.div>
       )}
 
-      {/* --- Bottom Navigation --- */}
-      <div className="fixed bottom-0 left-0 right-0 bg-black flex justify-around py-3 h-[80px] items-start border-t border-zinc-900/50">
-        <button className="flex flex-col items-center gap-1.5 group">
-          <div className="p-1 px-5 rounded-full bg-blue-500/15">
-            <Clock className="w-5 h-5 text-blue-500" />
-          </div>
-          <span className="text-[11px] font-medium text-blue-500">Recents</span>
-        </button>
-        <button className="flex flex-col items-center gap-1.5 group text-zinc-500">
-          <div className="p-1 px-5">
-            <User className="w-5 h-5" />
-          </div>
-          <span className="text-[11px] font-medium">Contacts</span>
-        </button>
-      </div>
 
       {/* --- USSD UI Layer --- */}
       <AnimatePresence mode="wait">
@@ -630,6 +756,13 @@ export default function App() {
                   </>
                 )}
 
+                {/* --- Step: Error Message --- */}
+                {ussdStep === 'CBE_ERROR_MSG' && (
+                  <div className="text-red-500 text-[17.5px] font-semibold leading-[1.6] mb-6 whitespace-pre-wrap">
+                    {ussdResult}
+                  </div>
+                )}
+
                 {/* --- Step: Success Message --- */}
                 {ussdStep === 'CBE_SUCCESS' && (
                   <>
@@ -664,7 +797,7 @@ export default function App() {
                   <div className="w-[1.2px] bg-zinc-700/50 h-5" />
                 </div>
                 <button 
-                  onClick={ussdStep === 'CBE_SUCCESS' || ussdStep === 'GENERIC' ? closeDialog : handleUssdAction}
+                  onClick={ussdStep === 'CBE_SUCCESS' || ussdStep === 'GENERIC' || ussdStep === 'CBE_ERROR_MSG' ? closeDialog : handleUssdAction}
                   className="flex-1 text-[#3B82F6] text-[1.15rem] font-medium active:bg-zinc-700/30 transition-colors"
                 >
                   Send
