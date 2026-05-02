@@ -13,6 +13,7 @@ import {
   Video, 
   MessageSquare, 
   MoreVertical, 
+  Trash2,
   Delete, 
   Clock, 
   User, 
@@ -78,7 +79,10 @@ export default function App() {
   const [dialedNumber, setDialedNumber] = useState('');
   const [isKeypadOpen, setIsKeypadOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'missed'>('all');
-  const [recentCalls, setRecentCalls] = useState<RecentCall[]>(INITIAL_RECENTS);
+  const [recentCalls, setRecentCalls] = useState<RecentCall[]>(() => {
+    const saved = localStorage.getItem('cbe_recent_calls');
+    return saved ? JSON.parse(saved) : INITIAL_RECENTS;
+  });
   const [ussdStep, setUssdStep] = useState<string>('IDLE');
   const [ussdInput, setUssdInput] = useState('');
   const [ussdSessionData, setUssdSessionData] = useState<any>({});
@@ -86,11 +90,23 @@ export default function App() {
   const [ussdResult, setUssdResult] = useState<string | null>(null);
   const [showNotification, setShowNotification] = useState(false);
   const [showReplyInput, setShowReplyInput] = useState(false);
-  const [messages, setMessages] = useState<{id: string, text: string, txId: string, timestamp: number}[]>([]);
+  const [messages, setMessages] = useState<{id: string, text: string, txId: string, timestamp: number}[]>(() => {
+    const saved = localStorage.getItem('cbe_messages');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
   const [isMsgDeleteMode, setIsMsgDeleteMode] = useState(false);
   const [currentView, setCurrentView] = useState<'dialer' | 'messages' | 'contacts' | 'search' | 'calling'>('dialer');
   const [callingNumber, setCallingNumber] = useState<string>('');
+
+  // Persist data
+  useEffect(() => {
+    localStorage.setItem('cbe_recent_calls', JSON.stringify(recentCalls));
+  }, [recentCalls]);
+
+  useEffect(() => {
+    localStorage.setItem('cbe_messages', JSON.stringify(messages));
+  }, [messages]);
 
   // Time formatter helper
   const formatMsgTime = (timestamp: number) => {
@@ -433,40 +449,72 @@ export default function App() {
           </div>
 
           {/* --- Call List --- */}
-          <div className="flex-1 overflow-y-auto px-6 no-scrollbar pb-32">
+          <div className="flex-1 overflow-y-auto no-scrollbar pb-32">
             {recentCalls
               .filter(call => activeTab === 'all' || call.type === 'missed')
               .filter(call => !dialedNumber || call.number.includes(dialedNumber) || call.name.toLowerCase().includes(dialedNumber.toLowerCase()))
               .map((call) => (
-                <div key={call.id} className="flex items-center justify-between py-4 group cursor-pointer active:bg-zinc-900/50 -mx-6 px-6 transition-colors" id={`call-${call.id}`} onClick={() => setEditingCall(call)}>
-                  <div className="flex items-center gap-4">
-                  <div className={`transition-colors ${call.type === 'missed' ? 'text-red-500' : 'text-zinc-500'}`}>
-                    {call.type === 'missed' ? (
-                      <Phone className="w-4 h-4 fill-current rotate-[135deg]" />
-                    ) : (
-                      <Phone className="w-4 h-4" />
-                    )}
+                <div key={call.id} className="relative group overflow-hidden touch-pan-x">
+                  {/* Delete Action (Hidden behind) */}
+                  <div 
+                    className="absolute inset-0 bg-red-600 flex items-center justify-end px-7 z-0 pointer-events-none"
+                    style={{ transition: 'opacity 0.2s' }}
+                  >
+                    <Trash2 className="text-white w-6 h-6" />
                   </div>
-                  <div className="flex flex-col">
-                    <h3 className={`text-[17px] font-normal tracking-wide ${call.type === 'missed' ? 'text-red-500' : 'text-zinc-100'}`}>
-                      {call.name}
-                    </h3>
-                    <div className="flex items-center gap-1.5 text-xs text-zinc-600 mt-0.5">
-                      <div className="border border-zinc-800 rounded-sm px-1 text-[9px] leading-tight flex items-center justify-center min-w-[14px]">
-                        {call.sim}
+                  
+                  {/* Swipeable Call Item */}
+                  <motion.div 
+                    drag="x"
+                    dragConstraints={{ left: -100, right: 0 }}
+                    dragElastic={0.05}
+                    onDragStart={(e) => e.stopPropagation()}
+                    className="relative bg-black flex items-center justify-between py-4 px-6 border-b border-zinc-900/40 active:bg-zinc-900/50 transition-colors z-10 cursor-pointer"
+                    onClick={(e) => {
+                      if (e.defaultPrevented) return;
+                      setEditingCall(call);
+                    }}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`transition-colors ${call.type === 'missed' ? 'text-red-500' : 'text-zinc-500'}`}>
+                        {call.type === 'missed' ? (
+                          <Phone className="w-4 h-4 fill-current rotate-[135deg]" />
+                        ) : (
+                          <Phone className="w-4 h-4" />
+                        )}
                       </div>
-                      <span className="text-[13px]">{call.name.startsWith('+251') ? 'Ethiopia' : 'Mobile'}</span>
+                      <div className="flex flex-col">
+                        <h3 className={`text-[14px] font-normal tracking-wide ${call.type === 'missed' ? 'text-red-500' : 'text-zinc-100'}`}>
+                          {call.name}
+                        </h3>
+                        <div className="flex items-center gap-1.5 text-xs text-zinc-600 mt-0.5">
+                          <div className="border border-zinc-800 rounded-sm px-1 text-[8px] leading-tight flex items-center justify-center min-w-[14px]">
+                            {call.sim}
+                          </div>
+                          <span className="text-[10.5px]">{call.name.startsWith('+251') ? 'Ethiopia' : 'Mobile'}</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-[10.5px] text-zinc-600">{call.time}</span>
+                      <div className="p-1 border border-zinc-800 rounded-full flex items-center justify-center">
+                        <Info className="w-4 h-4 text-zinc-500" />
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Functional Delete Button (Behind) */}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRecentCalls(prev => prev.filter(c => c.id !== call.id));
+                    }}
+                    className="absolute right-0 top-0 bottom-0 w-24 bg-red-600 flex items-center justify-center z-5"
+                  >
+                    <Trash2 className="text-white w-6 h-6" />
+                  </button>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-[13px] text-zinc-600">{call.time}</span>
-                  <div className="p-1 border border-zinc-800 rounded-full flex items-center justify-center">
-                    <Info className="w-4 h-4 text-zinc-500" />
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
 
           {/* --- Keypad Area --- */}
@@ -481,13 +529,18 @@ export default function App() {
                 ref={dialerRef}
               >
                 {/* --- Dialed Number Row --- */}
-                <div className="flex items-center justify-between px-8 py-2 h-16">
-                  <div className="w-10">
+                <div className="flex items-start justify-between px-8 py-2 h-[100px] overflow-y-auto">
+                  <div className="w-10 pt-3">
                     <MoreVertical className="w-5 h-5 text-zinc-500" />
                   </div>
                   
-                  <div className="flex-1 flex justify-center items-center overflow-hidden">
-                    <span className="text-[36px] font-normal tracking-tight text-white truncate max-w-full">
+                  <div className="flex-1 flex justify-center items-start pt-1 min-h-[60px]">
+                    <span className={`font-normal tracking-tight text-white break-all text-center leading-tight transition-all duration-200 ${
+                      dialedNumber.length < 8 ? 'text-[36px]' : 
+                      dialedNumber.length < 12 ? 'text-[28px]' : 
+                      dialedNumber.length < 16 ? 'text-[22px]' : 
+                      dialedNumber.length < 20 ? 'text-[19px]' : 'text-[17px]'
+                    }`}>
                       {dialedNumber}
                     </span>
                   </div>
@@ -497,9 +550,9 @@ export default function App() {
                       <button 
                         onClick={handleDelete}
                         onContextMenu={(e) => { e.preventDefault(); handleLongDelete(); }}
-                        className="text-zinc-500 active:text-white transition-colors"
+                        className="text-zinc-500 active:text-white transition-colors pt-3"
                       >
-                        <Delete className="w-8 h-8" />
+                        <Delete className="w-7 h-7" />
                       </button>
                     )}
                   </div>
@@ -572,7 +625,7 @@ export default function App() {
           {!isKeypadOpen && (
             <button 
               onClick={() => setIsKeypadOpen(true)}
-              className="fixed bottom-24 right-8 bg-[#25D366] p-5 rounded-full shadow-2xl active:scale-95"
+              className="fixed bottom-24 right-8 bg-[#25D366] p-5 rounded-full shadow-2xl active:scale-95 z-[60]"
             >
               <div className="grid grid-cols-3 gap-1">
                 {[...Array(9)].map((_, i) => (
