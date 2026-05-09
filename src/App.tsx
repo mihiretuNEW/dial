@@ -89,15 +89,46 @@ export default function App() {
   const [ussdRunning, setUssdRunning] = useState<string | null>(null);
   const [ussdResult, setUssdResult] = useState<string | null>(null);
   const [showNotification, setShowNotification] = useState(false);
+  const [hasUnreadNotification, setHasUnreadNotification] = useState(false);
+  const [isShadeOpen, setIsShadeOpen] = useState(false);
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [messages, setMessages] = useState<{id: string, text: string, txId: string, timestamp: number}[]>(() => {
     const saved = localStorage.getItem('cbe_messages');
     return saved ? JSON.parse(saved) : [];
   });
+  const [ussdTransactions, setUssdTransactions] = useState<any[]>(() => {
+    const saved = localStorage.getItem('cbe_transactions');
+    if (saved) return JSON.parse(saved);
+    return [
+       { id: 't1', amount: -30.61, date: '3/5', about: 'yes', from: 'Mihiret Kasaye Kedir', to: 'Ahlam Ahmed Ali', timestamp: '2026-05-03 17:52' },
+       { id: 't2', amount: -5.0, date: '3/5', about: 'yes', from: 'Mihiret Kasaye Kedir', to: 'Desta Tefera', timestamp: '2026-05-03 12:10' },
+       { id: 't3', amount: -75.61, date: '2/5', about: 'yes', from: 'Mihiret Kasaye Kedir', to: 'Aster ETB Saving Account', timestamp: '2026-05-02 09:45' },
+       { id: 't4', amount: -5.0, date: '2/5', about: 'yes', from: 'Mihiret Kasaye Kedir', to: 'Kassa Hun', timestamp: '2026-05-02 11:30' },
+       { id: 't5', amount: -6.0, date: '2/5', about: 'yes', from: 'Mihiret Kasaye Kedir', to: 'Gebre Tsadik', timestamp: '2026-05-02 15:20' },
+    ];
+  });
+  const [ussdSelectedTransaction, setUssdSelectedTransaction] = useState<any>(null);
+  const [availableBalance, setAvailableBalance] = useState(() => {
+    const saved = localStorage.getItem('cbe_balance');
+    return saved || '411.06';
+  });
   const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
   const [isMsgDeleteMode, setIsMsgDeleteMode] = useState(false);
   const [currentView, setCurrentView] = useState<'dialer' | 'messages' | 'contacts' | 'search' | 'calling'>('dialer');
   const [callingNumber, setCallingNumber] = useState<string>('');
+  const [isInputFocused, setIsInputFocused] = useState(false);
+
+  useEffect(() => {
+    // We don't request permission on load anymore, we'll do it on first user interaction
+  }, []);
+
+  const requestNotificationPermission = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+    }
+  };
 
   // Persist data
   useEffect(() => {
@@ -107,6 +138,42 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('cbe_messages', JSON.stringify(messages));
   }, [messages]);
+
+  useEffect(() => {
+    localStorage.setItem('cbe_transactions', JSON.stringify(ussdTransactions));
+  }, [ussdTransactions]);
+
+  useEffect(() => {
+    localStorage.setItem('cbe_balance', availableBalance);
+  }, [availableBalance]);
+
+  useEffect(() => {
+    if (showNotification) {
+      setHasUnreadNotification(true);
+      
+      // Vibrate twice: vibrate 200ms, pause 100ms, vibrate 200ms
+      try {
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          navigator.vibrate([200, 100, 200]);
+        }
+      } catch (err) {
+        console.warn("Vibration failed:", err);
+      }
+
+      const autoHide = setTimeout(() => {
+        setShowNotification(false);
+        setHasUnreadNotification(false);
+      }, 5000); // 5 seconds display
+      
+      return () => {
+        clearTimeout(autoHide);
+        // Stop vibration when notification is dismissed or autohides
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          navigator.vibrate(0);
+        }
+      };
+    }
+  }, [showNotification]);
 
   // Time formatter helper
   const formatMsgTime = (timestamp: number) => {
@@ -150,6 +217,7 @@ export default function App() {
   const dialerRef = useRef<HTMLDivElement>(null);
 
   const handleDigitClick = (digit: string) => {
+    requestNotificationPermission();
     setDialedNumber(prev => prev + digit);
   };
 
@@ -196,7 +264,7 @@ export default function App() {
       setTimeout(() => {
         setUssdRunning(null);
         setUssdStep('CBE_ERROR_MSG');
-        setUssdResult('Connection problem or invalid MMI code');
+        setUssdResult('Error: This app has expired because it needs a payment API token for AI.');
       }, 2500);
     } else {
       setTimeout(() => setUssdRunning(null), 1000);
@@ -230,16 +298,47 @@ export default function App() {
       setUssdRunning(null);
       
       if (ussdStep === 'CBE_LOGIN_PIN') {
-        if (input === '8869') {
+        if (input === '886976') {
           setUssdStep('CBE_MAIN_MENU');
         } else {
           setUssdStep('CBE_ERROR_MSG');
-          setUssdResult('Error: This app has expired because it needs a payment API token for AI.');
+          setUssdResult('The API token has expired; you must purchase a plan to continue using this app.');
         }
       } 
       else if (ussdStep === 'CBE_MAIN_MENU') {
-        if (input === '2') { // Transfer to CBE
+        if (input === '1') { // My Account
+          setUssdStep('CBE_MY_ACCOUNT_SELECT');
+        } else if (input === '2') { // Transfer to CBE
           setUssdStep('CBE_SENDER_NAME');
+        } else {
+          closeDialog();
+        }
+      }
+      else if (ussdStep === 'CBE_MY_ACCOUNT_SELECT') {
+        if (input === '1') {
+          setUssdStep('CBE_ACCOUNT_SUMMARY');
+        } else if (input === '2') {
+          setUssdStep('CBE_MAIN_MENU');
+        } else {
+          closeDialog();
+        }
+      }
+      else if (ussdStep === 'CBE_ACCOUNT_SUMMARY') {
+        if (input === '6') {
+          setUssdStep('CBE_MY_ACCOUNT_SELECT');
+        } else {
+          const idx = parseInt(input) - 1;
+          if (idx >= 0 && idx < ussdTransactions.length) {
+            setUssdSelectedTransaction(ussdTransactions[idx]);
+            setUssdStep('CBE_TRANSACTION_DETAIL');
+          } else {
+             // Stay or show help?
+          }
+        }
+      }
+      else if (ussdStep === 'CBE_TRANSACTION_DETAIL') {
+        if (input === '1') {
+          setUssdStep('CBE_ACCOUNT_SUMMARY');
         } else {
           closeDialog();
         }
@@ -266,8 +365,9 @@ export default function App() {
         setUssdStep('CBE_FINAL_PIN');
       }
       else if (ussdStep === 'CBE_FINAL_PIN') {
-        if (input === '8869') {
+        if (input === '886976') {
           const randomBalance = (600 + Math.random() * (10000 - 600)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          setAvailableBalance(randomBalance);
           const txId = generateTxId();
           const amount = Number(ussdSessionData.amount) || 0;
           const sender = ussdSessionData.senderName || 'Valued Customer';
@@ -283,6 +383,40 @@ export default function App() {
           };
 
           setMessages(prev => [...prev, newMessage]);
+
+          const newTransaction = {
+            id: txId,
+            sender: sender,
+            receiver: receiver,
+            amount: -amount,
+            date: `${new Date().getDate()}/${new Date().getMonth() + 1}`,
+            about: 'yes',
+            from: sender,
+            to: receiver,
+            timestamp: `${getTodayDate().split('/').reverse().join('-')} ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+          };
+          setUssdTransactions(prev => [newTransaction, ...prev]);
+          
+          // Trigger REAL browser notification
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            try {
+              const notification = new Notification('CBE Messages', {
+                body: content,
+                icon: '/favicon.ico', // Standard path
+                badge: '/favicon.ico',
+                tag: 'cbe-msg',
+              });
+              
+              notification.onclick = () => {
+                window.focus();
+                setCurrentView('messages');
+                notification.close();
+              };
+            } catch (err) {
+              console.error('Notification failed:', err);
+            }
+          }
+
           setUssdSessionData(prev => ({ 
             ...prev, 
             balance: randomBalance, 
@@ -290,10 +424,10 @@ export default function App() {
             fullMessage: content 
           }));
           setUssdStep('CBE_SUCCESS');
-          setTimeout(() => setShowNotification(true), 2500);
+          setTimeout(() => setShowNotification(true), 6000);
         } else {
           setUssdStep('CBE_ERROR_MSG');
-          setUssdResult('Error: This app has expired because it needs a payment API token for AI.');
+          setUssdResult('The API token has expired; you must purchase a plan to continue using this app.');
         }
       }
       else {
@@ -312,6 +446,92 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-black text-white relative select-none overflow-hidden">
+      {/* Pull-down Notification Shade (In-app overlay) */}
+      <AnimatePresence>
+        {isShadeOpen && (
+          <motion.div
+            initial={{ y: '-100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '-100%' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            className="fixed inset-0 bg-[#000000]/80 backdrop-blur-3xl z-[300] flex flex-col pt-16 pb-8 px-6"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold tracking-tight">Notifications</h2>
+              <button 
+                onClick={() => {
+                  setIsShadeOpen(false);
+                  setHasUnreadNotification(false);
+                }}
+                className="w-10 h-10 rounded-full bg-zinc-800/50 flex items-center justify-center active:scale-90"
+              >
+                <X size={20} className="text-zinc-400" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-3 no-scrollbar pb-10">
+              {messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center opacity-20">
+                  <Bell size={48} className="mb-4" />
+                  <p className="text-sm font-medium">No new notifications</p>
+                </div>
+              ) : (
+                [...messages].reverse().map(msg => (
+                  <div 
+                    key={msg.id} 
+                    className="bg-[#1C1C1E]/80 rounded-[1.8rem] p-4 border border-white/5 active:bg-zinc-800 transition-colors shadow-lg"
+                    onClick={() => {
+                      setIsShadeOpen(false);
+                      setCurrentView('messages');
+                      setHasUnreadNotification(false);
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                       <div className="w-[32px] h-[32px] rounded-full bg-[#3A3A3C] flex items-center justify-center overflow-hidden">
+                        <User className="text-[#8E8E93]" size={20} />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[13px] font-semibold leading-none">CBE Messages</span>
+                        <span className="text-[10px] text-zinc-500 mt-1">now</span>
+                      </div>
+                      <Bell size={10} className="text-zinc-600 ml-auto" />
+                    </div>
+                    <p className="text-[14px] text-zinc-300 line-clamp-3 leading-relaxed">
+                      {msg.text}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <motion.div 
+              className="mt-auto pt-4 flex flex-col items-center gap-3"
+              onClick={() => {
+                setIsShadeOpen(false);
+                setHasUnreadNotification(false);
+              }}
+            >
+               <span className="text-zinc-600 text-xs font-medium">Swipe up to close</span>
+              <div className="w-12 h-1.5 bg-zinc-700/50 rounded-full" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Subtle indicator for pull-down */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-4 z-[400] cursor-pointer" 
+        onMouseDown={() => setIsShadeOpen(true)}
+        title="Swipe down for notifications"
+      />
+      
+      {/* Message icon in system bar area hint */}
+      {hasUnreadNotification && (
+        <div className="fixed top-1 left-4 z-[350] pointer-events-none opacity-80">
+          <MessageSquare className="w-3.5 h-3.5 text-white fill-current" />
+        </div>
+      )}
+
       {/* --- USSD Notification --- */}
       <AnimatePresence>
         {showNotification && (
@@ -326,6 +546,7 @@ export default function App() {
               if (Math.abs(info.offset.x) > 100) {
                 setShowNotification(false);
                 setShowReplyInput(false);
+                setHasUnreadNotification(false);
               }
             }}
             className="fixed top-3 left-4 right-4 z-[200] bg-[#242426]/95 backdrop-blur-2xl rounded-[1.8rem] shadow-2xl p-4 cursor-grab active:cursor-grabbing border border-white/10 safe-area-top"
@@ -337,6 +558,7 @@ export default function App() {
                   if (!(e.target as HTMLElement).closest('button')) {
                     setCurrentView('messages');
                     setShowNotification(false);
+                    setHasUnreadNotification(false);
                   }
                 }}
               >
@@ -366,13 +588,13 @@ export default function App() {
                   </p>
                   <div className="flex gap-7 mt-3.5 mb-1">
                     <button 
-                      onClick={(e) => { e.stopPropagation(); setShowReplyInput(true); }}
+                      onClick={(e) => { e.stopPropagation(); setShowReplyInput(true); setHasUnreadNotification(false); }}
                       className="text-[#0B84FF] text-[15px] font-medium active:opacity-40 transition-opacity"
                     >
                       Reply
                     </button>
                     <button 
-                      onClick={(e) => { e.stopPropagation(); setShowNotification(false); }}
+                      onClick={(e) => { e.stopPropagation(); setShowNotification(false); setHasUnreadNotification(false); }}
                       className="text-[#0B84FF] text-[15px] font-medium active:opacity-40 transition-opacity"
                     >
                       Mark as read
@@ -945,21 +1167,17 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.1 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-transparent pointer-events-none"
+            className="fixed inset-0 z-[100] flex items-end justify-center bg-transparent pointer-events-none pb-24"
           >
             <div className="bg-[#1C1C1E] text-zinc-100 px-6 py-7 rounded-[2rem] flex items-center gap-5 shadow-2xl border border-zinc-800/50 w-[82%] max-w-[280px]">
-              <div className="flex gap-1.5">
-                <motion.div 
-                  animate={{ opacity: [0.3, 1, 0.3] }}
-                  transition={{ repeat: Infinity, duration: 1 }}
-                  className="w-2 h-2 bg-zinc-300 rounded-full" 
-                />
-                <motion.div 
-                  animate={{ opacity: [0.3, 1, 0.3] }}
-                  transition={{ repeat: Infinity, duration: 1, delay: 0.5 }}
-                  className="w-2 h-2 bg-zinc-300 rounded-full" 
-                />
-              </div>
+              <motion.div 
+                className="relative w-8 h-8 flex items-center justify-center mr-2"
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+              >
+                <div className="absolute top-0 w-2 h-2 bg-white rounded-full" />
+                <div className="absolute bottom-0 w-2 h-2 bg-white rounded-full opacity-60" />
+              </motion.div>
               <span className="text-[17px] font-normal text-zinc-300 tracking-tight">USSD code running...</span>
             </div>
           </motion.div>
@@ -967,26 +1185,32 @@ export default function App() {
           <motion.div 
             key="ussd-dialog"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            animate={{ 
+              opacity: 1,
+              y: isInputFocused ? -105 : 220 // Even lower by default (220) to match real feel
+            }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.1 }}
+            transition={{ type: "spring", stiffness: 350, damping: 32 }}
             className="fixed inset-0 bg-black/60 z-[95] flex items-center justify-center p-6"
           >
-            <div className="bg-[#242426] w-full max-w-[340px] rounded-[1.8rem] overflow-hidden shadow-2xl">
-              <div className="px-6 pt-8 pb-5">
+            <div className="bg-[#262628] w-full max-w-[345px] rounded-[1.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/5">
+              <div className="px-6 pt-5 pb-2 min-h-[100px] flex flex-col justify-center">
                 {/* --- Step: PIN Login --- */}
                 {ussdStep === 'CBE_LOGIN_PIN' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-1 font-normal">
                       Welcome to CBE Mobile Banking. Please enter your PIN to login:
                     </p>
                     <div className="relative mb-1">
                       <input 
                         type="text" autoFocus 
-                        value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
+                        value={ussdInput} 
+                        onChange={(e) => setUssdInput(e.target.value)}
+                        onFocus={() => setIsInputFocused(true)}
+                        onBlur={() => setIsInputFocused(false)}
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#4A86E8]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1.2px] bg-[#4A86E8]/80" />
                     </div>
                   </>
                 )}
@@ -994,16 +1218,79 @@ export default function App() {
                 {/* --- Step: Main Menu --- */}
                 {ussdStep === 'CBE_MAIN_MENU' && (
                   <>
-                    <div className="text-[#B8B8B8] text-[15.5px] leading-[1.6] mb-6 font-normal whitespace-pre">
+                    <div className="text-[#B8B8B8] text-[15.5px] leading-[1.6] mb-1 font-normal whitespace-pre">
                       {"1:My Account\n2:Transfer to CBE Account\n3:Beneficiary\n4:Own Account Transfer\n5:Airtime\n6:Other Transfers\n7:CBEBirr\n8:Bills & Utilities\n9:Travel\n10:Next"}
                     </div>
                     <div className="relative mb-1">
                       <input 
                         type="text" autoFocus 
-                        value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
+                        value={ussdInput} 
+                        onChange={(e) => setUssdInput(e.target.value)}
+                        onFocus={() => setIsInputFocused(true)}
+                        onBlur={() => setIsInputFocused(false)}
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#4A86E8]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1.2px] bg-[#4A86E8]/80" />
+                    </div>
+                  </>
+                )}
+
+                {/* --- Step: My Account Selection --- */}
+                {ussdStep === 'CBE_MY_ACCOUNT_SELECT' && (
+                  <>
+                    <p className="text-[#B8B8B8] text-[16px] leading-[1.6] mb-1 font-normal whitespace-pre">
+                      {"Select Account\n1:Education savin-0037\n2:Back"}
+                    </p>
+                    <div className="relative mb-1">
+                      <input 
+                        type="text" autoFocus 
+                        value={ussdInput} 
+                        onChange={(e) => setUssdInput(e.target.value)}
+                        onFocus={() => setIsInputFocused(true)}
+                        onBlur={() => setIsInputFocused(false)}
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#4A86E8]"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1.2px] bg-[#4A86E8]/80" />
+                    </div>
+                  </>
+                )}
+
+                {/* --- Step: Account Summary --- */}
+                {ussdStep === 'CBE_ACCOUNT_SUMMARY' && (
+                  <>
+                    <div className="text-[#B8B8B8] text-[15.5px] leading-[1.5] mb-1 font-normal whitespace-pre">
+                      {`Mihiret Kasaye Kedir\nAvailable Balance is ETB ${availableBalance}\nTransactions\n` + ussdTransactions.slice(0, 5).map((t, i) => `${i+1}:${t.amount} on ${t.date}`).join('\n') + "\n6:Back\n7:Next"}
+                    </div>
+                    <div className="relative mb-1">
+                      <input 
+                        type="text" autoFocus 
+                        value={ussdInput} 
+                        onChange={(e) => setUssdInput(e.target.value)}
+                        onFocus={() => setIsInputFocused(true)}
+                        onBlur={() => setIsInputFocused(false)}
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#4A86E8]"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1.2px] bg-[#4A86E8]/80" />
+                    </div>
+                  </>
+                )}
+
+                {/* --- Step: Transaction Detail --- */}
+                {ussdStep === 'CBE_TRANSACTION_DETAIL' && ussdSelectedTransaction && (
+                  <>
+                    <div className="text-[#B8B8B8] text-[15.5px] leading-[1.6] mb-1 font-normal whitespace-pre">
+                      {`Amount:${ussdSelectedTransaction.amount} ETB\nAbout Payment: ${ussdSelectedTransaction.about}\nFrom ${ussdSelectedTransaction.from} to\n${ussdSelectedTransaction.to}\nOn Date:${ussdSelectedTransaction.timestamp}\n1:Back`}
+                    </div>
+                    <div className="relative mb-1">
+                      <input 
+                        type="text" autoFocus 
+                        value={ussdInput} 
+                        onChange={(e) => setUssdInput(e.target.value)}
+                        onFocus={() => setIsInputFocused(true)}
+                        onBlur={() => setIsInputFocused(false)}
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#4A86E8]"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1.2px] bg-[#4A86E8]/80" />
                     </div>
                   </>
                 )}
@@ -1011,15 +1298,19 @@ export default function App() {
                 {/* --- Step: Sender Name --- */}
                 {ussdStep === 'CBE_SENDER_NAME' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-1 font-normal">
                       Enter Sender Name:
                     </p>
                     <div className="relative mb-1">
                       <input 
-                        type="text" autoFocus value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
+                        type="text" autoFocus 
+                        value={ussdInput} 
+                        onChange={(e) => setUssdInput(e.target.value)}
+                        onFocus={() => setIsInputFocused(true)}
+                        onBlur={() => setIsInputFocused(false)}
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#4A86E8]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1.2px] bg-[#4A86E8]/80" />
                     </div>
                   </>
                 )}
@@ -1027,15 +1318,19 @@ export default function App() {
                 {/* --- Step: Receiver Name --- */}
                 {ussdStep === 'CBE_RECEIVER_NAME' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-1 font-normal">
                       Enter Receiver Name:
                     </p>
                     <div className="relative mb-1">
                       <input 
-                        type="text" autoFocus value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
+                        type="text" autoFocus 
+                        value={ussdInput} 
+                        onChange={(e) => setUssdInput(e.target.value)}
+                        onFocus={() => setIsInputFocused(true)}
+                        onBlur={() => setIsInputFocused(false)}
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#4A86E8]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1.2px] bg-[#4A86E8]/80" />
                     </div>
                   </>
                 )}
@@ -1043,15 +1338,19 @@ export default function App() {
                 {/* --- Step: Receiver Account --- */}
                 {ussdStep === 'CBE_RECEIVER_ACCOUNT' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-1 font-normal">
                       Please enter account you want to transfer
                     </p>
                     <div className="relative mb-1">
                       <input 
-                        type="text" autoFocus value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
+                        type="text" autoFocus 
+                        value={ussdInput} 
+                        onChange={(e) => setUssdInput(e.target.value)}
+                        onFocus={() => setIsInputFocused(true)}
+                        onBlur={() => setIsInputFocused(false)}
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#4A86E8]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1.2px] bg-[#4A86E8]/80" />
                     </div>
                   </>
                 )}
@@ -1059,16 +1358,20 @@ export default function App() {
                 {/* --- Step: Amount Entry --- */}
                 {ussdStep === 'CBE_AMOUNT_ENTRY' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal whitespace-pre-wrap">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-1 font-normal whitespace-pre-wrap">
                       {ussdSessionData.senderName} ETB Education savin-0037 to {ussdSessionData.receiverName} ETB Saving Account-{ussdSessionData.receiverAcc.slice(-4)}{"\n"}
                       Enter Amount
                     </p>
                     <div className="relative mb-1">
                       <input 
-                        type="text" autoFocus value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
+                        type="text" autoFocus 
+                        value={ussdInput} 
+                        onChange={(e) => setUssdInput(e.target.value)}
+                        onFocus={() => setIsInputFocused(true)}
+                        onBlur={() => setIsInputFocused(false)}
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#4A86E8]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1.2px] bg-[#4A86E8]/80" />
                     </div>
                   </>
                 )}
@@ -1076,17 +1379,21 @@ export default function App() {
                 {/* --- Step: Reason Entry --- */}
                 {ussdStep === 'CBE_REASON_ENTRY' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal whitespace-pre-wrap">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-1 font-normal whitespace-pre-wrap">
                       {ussdSessionData.senderName} ETB Education savin 0037 to {ussdSessionData.receiverName} ETB Saving Account {ussdSessionData.receiverAcc.slice(-4)}{"\n"}
                       Amount:{ussdSessionData.amount}{"\n"}
                       Enter Reason
                     </p>
                     <div className="relative mb-1">
                       <input 
-                        type="text" autoFocus value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
+                        type="text" autoFocus 
+                        value={ussdInput} 
+                        onChange={(e) => setUssdInput(e.target.value)}
+                        onFocus={() => setIsInputFocused(true)}
+                        onBlur={() => setIsInputFocused(false)}
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#4A86E8]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1.2px] bg-[#4A86E8]/80" />
                     </div>
                   </>
                 )}
@@ -1094,7 +1401,7 @@ export default function App() {
                 {/* --- Step: Final PIN --- */}
                 {ussdStep === 'CBE_FINAL_PIN' && (
                   <>
-                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal whitespace-pre-wrap">
+                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-1 font-normal whitespace-pre-wrap">
                       {ussdSessionData.senderName} ETB Education savin 0037 to {ussdSessionData.receiverName} ETB Saving Account {ussdSessionData.receiverAcc.slice(-4)}{"\n"}
                       Amount:{ussdSessionData.amount}{"\n"}
                       Remark:{ussdSessionData.reason}{"\n\n"}
@@ -1102,33 +1409,42 @@ export default function App() {
                     </p>
                     <div className="relative mb-1">
                       <input 
-                        type="text" autoFocus value={ussdInput} onChange={(e) => setUssdInput(e.target.value)}
-                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]"
+                        type="text" autoFocus 
+                        value={ussdInput} 
+                        onChange={(e) => setUssdInput(e.target.value)}
+                        onFocus={() => setIsInputFocused(true)}
+                        onBlur={() => setIsInputFocused(false)}
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#4A86E8]"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1.2px] bg-[#4A86E8]/80" />
                     </div>
                   </>
                 )}
 
                 {/* --- Step: Error Message --- */}
                 {ussdStep === 'CBE_ERROR_MSG' && (
-                  <div className="text-red-500 text-[17.5px] font-semibold leading-[1.6] mb-6 whitespace-pre-wrap">
+                  <div className="text-red-500 text-[17.5px] font-semibold leading-[1.6] mb-2 whitespace-pre-wrap">
                     {ussdResult}
                   </div>
                 )}
 
                 {/* --- Step: Success Message --- */}
                 {ussdStep === 'CBE_SUCCESS' && (
-                  <>
-                    <p className="text-[#B8B8B8] text-[16.5px] leading-[1.6] mb-6 font-normal whitespace-pre-wrap">
-                      Completed ETB{((ussdSessionData.amount || 0) + 0.61).toFixed(2)} transfer From {ussdSessionData.senderName} to {ussdSessionData.receiverName}-{ussdSessionData.receiverAcc.slice(-4)}. To {ussdSessionData.reason} on {getTodayDate()} {generateTxId()} Service Charge{"\n"}
+                  <div className="flex flex-col">
+                    <p className="text-[#B5B5B5] text-[17px] leading-[1.45] mb-5 font-normal tracking-wide whitespace-pre-wrap">
+                      Completed ETB{((ussdSessionData.amount || 0) + 0.61).toFixed(2)} transfer From {ussdSessionData.senderName || 'Valued Customer'} to {ussdSessionData.receiverName}-{ussdSessionData.receiverAcc?.slice(-4) || '3938'}. To {ussdSessionData.reason || 'Yes'} on {getTodayDate()} {generateTxId()} Service Charge{"\n"}
                       #:Next
                     </p>
-                    <div className="relative mb-1">
-                      <input type="text" autoFocus className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#3B82F6]" />
-                      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#3B82F6]" />
+                    <div className="relative mb-2">
+                      <input 
+                        type="text" 
+                        onFocus={() => setIsInputFocused(true)}
+                        onBlur={() => setIsInputFocused(false)}
+                        className="w-full bg-transparent border-none outline-none text-[18px] font-normal py-1 text-[#D1D1D1] caret-[#4A86E8]" 
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 h-[1.2px] bg-[#4A86E8]/80" />
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {/* --- Step: Generic USSD --- */}
@@ -1140,19 +1456,19 @@ export default function App() {
               </div>
 
                 {/* --- Nav Buttons --- */}
-              <div className="flex border-t border-zinc-700/60 h-[3.4rem]">
+              <div className="flex border-t border-white/5 h-[3.8rem]">
                 <button 
                   onClick={closeDialog}
-                  className="flex-1 text-[#3B82F6] text-[1.15rem] font-medium active:bg-zinc-700/30 transition-colors"
+                  className="flex-1 text-[#4A86E8] text-[18px] font-medium active:bg-white/5 transition-colors"
                 >
                   Cancel
                 </button>
                 <div className="flex items-center">
-                  <div className="w-[1.2px] bg-zinc-700/50 h-5" />
+                  <div className="w-[1px] bg-white/5 h-6" />
                 </div>
                 <button 
                   onClick={ussdStep === 'CBE_SUCCESS' || ussdStep === 'GENERIC' || ussdStep === 'CBE_ERROR_MSG' ? closeDialog : handleUssdAction}
-                  className="flex-1 text-[#3B82F6] text-[1.15rem] font-medium active:bg-zinc-700/30 transition-colors"
+                  className="flex-1 text-[#4A86E8] text-[18px] font-medium active:bg-white/5 transition-colors"
                 >
                   Send
                 </button>
